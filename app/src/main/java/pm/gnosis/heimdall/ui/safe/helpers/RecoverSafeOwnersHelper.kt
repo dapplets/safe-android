@@ -1,6 +1,7 @@
 package pm.gnosis.heimdall.ui.safe.helpers
 
 import android.content.Context
+import com.google.android.gms.common.collect.Sets
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -162,12 +163,14 @@ class DefaultRecoverSafeOwnersHelper @Inject constructor(
         addressesToKeep: Set<Solidity.Address>,
         addressesToAdd: Set<Solidity.Address>
     ): List<String> {
+        val newOwners = Sets.union(addressesToAdd, addressesToKeep)
+        val targetThreshold = Math.max(1, newOwners.size - 2L)
         val payloads = mutableListOf<String>()
         val remainingNewAddresses = addressesToAdd.toMutableList()
         for (i in safeInfo.owners.size - 1 downTo 0) {
             val safeOwner = safeInfo.owners[i]
-            if (addressesToKeep.contains(safeOwner)) continue
             if (remainingNewAddresses.remove(safeOwner)) continue
+            if (newOwners.contains(safeOwner)) continue
 
             var newOwner: Solidity.Address? = null
             while (!remainingNewAddresses.isEmpty()) {
@@ -175,14 +178,28 @@ class DefaultRecoverSafeOwnersHelper @Inject constructor(
                 if (!safeInfo.owners.contains(newOwner)) break
                 newOwner = null
             }
-            newOwner ?: break
-
             val pointerAddress = nullOnThrow { safeInfo.owners[i - 1] } ?: SENTINEL
-            payloads += GnosisSafe.SwapOwner.encode(
-                prevOwner = pointerAddress,
-                oldOwner = safeOwner,
-                newOwner = newOwner
-            )
+            newOwner?.let {
+                // Swap owner
+                payloads += GnosisSafe.SwapOwner.encode(
+                    prevOwner = pointerAddress,
+                    oldOwner = safeOwner,
+                    newOwner = newOwner
+                )
+            } ?: run {
+                // Remove unwanted owner
+                payloads += GnosisSafe.RemoveOwner.encode(
+                    prevOwner = pointerAddress,
+                    owner = safeOwner,
+                    _threshold = Solidity.UInt256(BigInteger.valueOf(targetThreshold))
+                )
+            }
+        }
+        // Add missing owners
+        while(!remainingNewAddresses.isEmpty()) {
+            val newOwner = remainingNewAddresses.removeAt(remainingNewAddresses.lastIndex)
+            val threshold = if (remainingNewAddresses.isEmpty()) targetThreshold else 1
+            payloads += GnosisSafe.AddOwnerWithThreshold.encode(owner = newOwner, _threshold = Solidity.UInt256(threshold.toBigInteger()))
         }
         if (remainingNewAddresses.isNotEmpty()) throw IllegalStateException("Couldn't add all addresses")
         return payloads
