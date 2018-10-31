@@ -1,6 +1,7 @@
 package pm.gnosis.heimdall.ui.transactions.view.confirm
 
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -148,6 +149,7 @@ class ConfirmTransactionActivity : ViewModelActivity<ConfirmTransactionContract>
                 setupViewHolder(update.viewHolder)
             is SubmitTransactionHelper.ViewUpdate.TransactionSubmitted -> {
                 if (update.success) {
+                    setResult(Activity.RESULT_OK, Intent().putExtra("pm.gnosis.heimdall.CHAIN_HASH", update.chainHash))
                     finish()
                 } else {
                     infoViewHelper.toggleReadyState(true)

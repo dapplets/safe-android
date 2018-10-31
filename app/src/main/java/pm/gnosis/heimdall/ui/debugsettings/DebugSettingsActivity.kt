@@ -9,6 +9,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.rxkotlin.subscribeBy
 import kotlinx.android.synthetic.main.layout_debug_settings.*
+import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
 import pm.gnosis.heimdall.HeimdallApplication
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.di.components.DaggerViewComponent
@@ -73,13 +74,13 @@ class DebugSettingsActivity : BaseActivity() {
                     layout_debug_settings_pair.isEnabled = false
                     layout_debug_settings_progress_bar.visibility = View.VISIBLE
                 }
-                .doOnTerminate {
+                .doAfterTerminate {
                     layout_debug_settings_pair.isEnabled = true
                     layout_debug_settings_progress_bar.visibility = View.GONE
                 }
-                .subscribeBy(onComplete = {
+                .subscribeBy(onSuccess = {
                     toast("Devices paired successfully")
-                    finish()
+                    layout_debug_settings_address.setText(it.asEthereumAddressChecksumString())
                 }, onError = {
                     toast("Error pairing devices")
                     Timber.e(it)

@@ -57,7 +57,6 @@ class DefaultTransactionExecutionRepository @Inject constructor(
 
     override fun removeTransactionEventsCallback(callback: TransactionEventsCallback): Boolean =
         transactionSubmittedCallbacks.remove(callback)
-
     override fun calculateHash(
         safeAddress: Solidity.Address, transaction: SafeTransaction,
         txGas: BigInteger, dataGas: BigInteger, gasPrice: BigInteger, gasToken: Solidity.Address, version: SemVer
@@ -218,7 +217,6 @@ class DefaultTransactionExecutionRepository @Inject constructor(
                 val rpcNonce = GnosisSafe.Nonce.decode(info.nonce.mapped()!!).param0.value
                 val estimateNonce = estimate.lastUsedNonce?.decimalAsBigInteger()?.let { it + BigInteger.ONE } ?: BigInteger.ZERO
                 val nonce = checkNonce(safeAddress, if (rpcNonce > estimateNonce) rpcNonce else estimateNonce)
-
                 val threshold = GnosisSafe.GetThreshold.decode(info.threshold.mapped()!!).param0.value.toInt()
                 val owners = GnosisSafe.GetOwners.decode(info.owners.mapped()!!).param0.items
                 val updatedTransaction = transaction.copy(wrapped = transaction.wrapped.updateTransactionWithStatus(nonce))

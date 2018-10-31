@@ -1,6 +1,5 @@
 package pm.gnosis.heimdall.ui.transactions.view.helpers
 
-import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -35,7 +34,8 @@ interface SubmitTransactionHelper {
     fun setup(
         safe: Solidity.Address,
         executionInfo: (SafeTransaction) -> Single<TransactionExecutionRepository.ExecuteInformation>,
-        referenceId: Long? = null
+        referenceId: Long? = null,
+        modifyTargets: (MutableSet<Solidity.Address>) -> Single<Set<Solidity.Address>> = { targets -> Single.just(targets) }
     )
 
     fun observe(
@@ -54,7 +54,7 @@ interface SubmitTransactionHelper {
         object ConfirmationsRequested : ViewUpdate()
         object ConfirmationsError : ViewUpdate()
         object TransactionRejected : ViewUpdate()
-        data class TransactionSubmitted(val success: Boolean) : ViewUpdate()
+        data class TransactionSubmitted(val success: Boolean, val chainHash: String? = null) : ViewUpdate()
     }
 }
 
@@ -69,15 +69,18 @@ class DefaultSubmitTransactionHelper @Inject constructor(
     private lateinit var safe: Solidity.Address
     private lateinit var executionInfo: (SafeTransaction) -> Single<TransactionExecutionRepository.ExecuteInformation>
     private var referenceId: Long? = null
+    private lateinit var modifyTargets: (MutableSet<Solidity.Address>) -> Single<Set<Solidity.Address>>
 
     override fun setup(
         safe: Solidity.Address,
         executionInfo: (SafeTransaction) -> Single<TransactionExecutionRepository.ExecuteInformation>,
-        referenceId: Long?
+        referenceId: Long?,
+        modifyTargets: (MutableSet<Solidity.Address>) -> Single<Set<Solidity.Address>>
     ) {
         this.safe = safe
         this.referenceId = referenceId
         this.executionInfo = executionInfo
+        this.modifyTargets = modifyTargets
     }
 
     override fun observe(
@@ -246,24 +249,25 @@ class DefaultSubmitTransactionHelper @Inject constructor(
             safe, params.transaction, signatures, params.isOwner, params.txGas, params.dataGas, params.gasPrice, params.gasToken, params.safeVersion,
             referenceId = referenceId
         )
-            .flatMapCompletable {
-                val targets = (params.owners - params.sender).toSet()
+            .flatMap { hash -> modifyTargets((params.owners - params.sender).toMutableSet()).map { it to hash } }
+            .flatMap { (targets, hash) ->
                 if (targets.isEmpty()) {
                     // Nothing to push
-                    return@flatMapCompletable Completable.complete()
+                    return@flatMap Single.just(hash)
                 }
-                return@flatMapCompletable signaturePushRepository.propagateSubmittedTransaction(params.transactionHash, it, targets)
+                signaturePushRepository.propagateSubmittedTransaction(params.transactionHash, hash, targets)
                     // Ignore error here ... if push fails ... it fails
                     .doOnError(Timber::e)
                     .onErrorComplete()
+                    .toSingleDefault(hash)
             }
-            .andThen(
+            .flatMapObservable {
                 Observable.just<ViewUpdate>(
                     ViewUpdate.TransactionSubmitted(
-                        true
+                        true, it
                     )
                 )
-            )
+            }
             .onErrorResumeNext { t: Throwable ->
                 // Propagate error to display snackbar then propagate status
                 Observable.just<ViewUpdate>(

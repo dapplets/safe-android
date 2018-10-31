@@ -23,6 +23,7 @@ import pm.gnosis.model.Solidity
 import pm.gnosis.models.Transaction
 import pm.gnosis.models.Wei
 import pm.gnosis.svalinn.accounts.base.models.Signature
+import pm.gnosis.svalinn.accounts.base.repositories.AccountsRepository
 import pm.gnosis.svalinn.common.utils.Result
 import pm.gnosis.tests.utils.ImmediateSchedulersRule
 import pm.gnosis.tests.utils.MockUtils
@@ -38,6 +39,9 @@ class ConfirmTransactionViewModelTest {
     val rule = ImmediateSchedulersRule()
 
     @Mock
+    private lateinit var accountsRepositoryMock: AccountsRepository
+
+    @Mock
     private lateinit var relayRepositoryMock: TransactionExecutionRepository
 
     @Mock
@@ -50,7 +54,7 @@ class ConfirmTransactionViewModelTest {
 
     @Before
     fun setUp() {
-        viewModel = ConfirmTransactionViewModel(submitTransactionHelper, txRepositoryMock, relayRepositoryMock)
+        viewModel = ConfirmTransactionViewModel(submitTransactionHelper, accountsRepositoryMock, txRepositoryMock, relayRepositoryMock)
     }
 
     @Test

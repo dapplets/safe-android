@@ -13,7 +13,9 @@ import pm.gnosis.heimdall.ui.transactions.view.helpers.SubmitTransactionHelper.E
 import pm.gnosis.heimdall.ui.transactions.view.helpers.SubmitTransactionHelper.ViewUpdate
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.accounts.base.models.Signature
+import pm.gnosis.svalinn.accounts.base.repositories.AccountsRepository
 import pm.gnosis.svalinn.common.utils.Result
+import pm.gnosis.utils.hexToByteArray
 import pm.gnosis.utils.removeHexPrefix
 import pm.gnosis.utils.toHexString
 import java.math.BigInteger
@@ -21,6 +23,7 @@ import javax.inject.Inject
 
 class ConfirmTransactionViewModel @Inject constructor(
     private val submitTransactionHelper: SubmitTransactionHelper,
+    private val accountsRepository: AccountsRepository,
     private val transactionInfoRepository: TransactionInfoRepository,
     private val executionRepository: TransactionExecutionRepository
 ) : ConfirmTransactionContract() {
@@ -65,7 +68,7 @@ class ConfirmTransactionViewModel @Inject constructor(
         this.gasPrice = gasPrice
         this.nonce = nonce
         this.signature = signature
-        submitTransactionHelper.setup(safe, ::txParams)
+        submitTransactionHelper.setup(safe, ::txParams, modifyTargets = ::modifyTargets)
     }
 
     private fun txParams(transaction: SafeTransaction): Single<TransactionExecutionRepository.ExecuteInformation> {
@@ -74,12 +77,12 @@ class ConfirmTransactionViewModel @Inject constructor(
         return loadState(hash)
             .flatMap { state ->
                 executionRepository.calculateHash(safe, updatedTransaction, txGas, dataGas, gasPrice, gasToken, state.version)
-                .map {
-                    if (it.toHexString().toLowerCase() != hash.removeHexPrefix().toLowerCase()) {
-                        throw IllegalStateException("Invalid transaction")
+                    .map {
+                        if (it.toHexString().toLowerCase() != hash.removeHexPrefix().toLowerCase()) {
+                            throw IllegalStateException("Invalid transaction")
+                        }
+                        state
                     }
-                    state
-                }
             }
             .map {
                 TransactionExecutionRepository.ExecuteInformation(
@@ -94,6 +97,9 @@ class ConfirmTransactionViewModel @Inject constructor(
             .doOnSuccess {
                 cache[hash] = it
             }
+
+    private fun modifyTargets(targets: MutableSet<Solidity.Address>) =
+        accountsRepository.recover(hash.hexToByteArray(), signature).map<Set<Solidity.Address>> { targets.add(it); targets }
 
     override fun observe(events: Events, transaction: SafeTransaction): Observable<Result<ViewUpdate>> =
         transactionInfoRepository.checkRestrictedTransaction(transaction)
@@ -119,7 +125,9 @@ class ConfirmTransactionViewModel @Inject constructor(
             .flatMapObservable { data -> submitTransactionHelper.observe(events, data, setOf(signature)) }
 
     override fun rejectTransaction(transaction: SafeTransaction): Completable =
-        loadState(hash).flatMapCompletable {
-            executionRepository.notifyReject(safe, transaction, txGas, dataGas, gasPrice, gasToken, (it.owners - it.sender).toSet(), it.version)
-        }
+        loadState(hash)
+            .flatMap { modifyTargets((it.owners - it.sender).toMutableSet()).map { targets -> targets to it.version } }
+            .flatMapCompletable { (targets, version) ->
+                executionRepository.notifyReject(safe, transaction, txGas, dataGas, gasPrice, gasToken, targets, version)
+            }
 }

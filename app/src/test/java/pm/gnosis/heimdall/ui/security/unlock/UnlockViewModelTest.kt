@@ -22,6 +22,7 @@ import pm.gnosis.svalinn.common.utils.Result
 import pm.gnosis.svalinn.security.EncryptionManager
 import pm.gnosis.tests.utils.ImmediateSchedulersRule
 import pm.gnosis.tests.utils.MockUtils
+import pm.gnosis.tests.utils.TestPreferences
 
 @RunWith(MockitoJUnitRunner::class)
 class UnlockViewModelTest {

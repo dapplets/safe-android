@@ -1,6 +1,7 @@
 package pm.gnosis.heimdall.ui.transactions.view.review
 
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -115,13 +116,18 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
                 setupViewHolder(update.viewHolder)
             is SubmitTransactionHelper.ViewUpdate.TransactionSubmitted -> {
                 if (update.success) {
-                    startActivity(
-                        SafeMainActivity.createIntent(
-                            this,
-                            null,
-                            R.string.tab_title_transactions
+                    if (callingActivity == null) {
+                        startActivity(
+                            SafeMainActivity.createIntent(
+                                this,
+                                null,
+                                R.string.tab_title_transactions
+                            )
                         )
-                    )
+                    } else {
+                        setResult(Activity.RESULT_OK, Intent().putExtra("pm.gnosis.heimdall.CHAIN_HASH", update.chainHash))
+                        finish()
+                    }
                 } else {
                     infoViewHelper.toggleReadyState(true)
                 }

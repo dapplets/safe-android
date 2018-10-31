@@ -36,10 +36,7 @@ class ReviewTransactionViewModel @Inject constructor(
     }
 
     private fun txParams(transaction: SafeTransaction): Single<TransactionExecutionRepository.ExecuteInformation> {
-        return cachedState[transaction]?.let { Single.just(it) }
-            ?: tokenRepository.loadPaymentToken()
-                .flatMap { executionRepository.loadExecuteInformation(safe, it.address, transaction) }
-                .doOnSuccess { cachedState[transaction] = it }
+        return tokenRepository.loadPaymentToken().flatMap { executionRepository.loadExecuteInformation(safe, it.address, transaction) }
     }
 
     override fun observe(events: Events, transactionData: TransactionData): Observable<Result<ViewUpdate>> =
