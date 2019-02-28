@@ -8,6 +8,7 @@ import com.squareup.moshi.Moshi
 import io.reactivex.*
 import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
+import io.reactivex.subjects.PublishSubject
 import pm.gnosis.crypto.utils.Sha3Utils
 import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
 import pm.gnosis.heimdall.BuildConfig
@@ -222,6 +223,24 @@ class DefaultPushServiceRepository @Inject constructor(
             .subscribeOn(Schedulers.io())
             .flatMapCompletable { sendNotification(it, safe, targets) }
 
+    override fun requestTypedDataConfirmations(
+        payload: String,
+        appSignature: Signature,
+        safe: Solidity.Address,
+        targets: Set<Solidity.Address>
+    ): Completable =
+        Single.fromCallable {
+            ServiceMessage.TypedDataRequest(
+                payload = payload,
+                safe = safe,
+                r = appSignature.r,
+                s = appSignature.s,
+                v = appSignature.v.toInt()
+            )
+        }
+            .subscribeOn(Schedulers.io())
+            .flatMapCompletable { sendNotification(it, safe, targets) }
+
     private fun sendNotification(message: ServiceMessage, safe: Solidity.Address, targets: Set<Solidity.Address>) =
         Single.fromCallable {
             moshi.adapter(message.javaClass).toJson(message)
@@ -277,8 +296,13 @@ class DefaultPushServiceRepository @Inject constructor(
                 }
             }
             is PushMessage.SignTypedData -> showSignTypedDataNotification(pushMessage)
+            is PushMessage.SignTypedDataConfirmation -> signTypedDataConfirmationsSubject.onNext(pushMessage)
         }
     }
+
+    private val signTypedDataConfirmationsSubject = PublishSubject.create<PushMessage.SignTypedDataConfirmation>()
+
+    override fun observeTypedDataConfirmationPushes(): Observable<PushMessage.SignTypedDataConfirmation> = signTypedDataConfirmationsSubject
 
     private fun showSafeCreatedNotification(safe: Solidity.Address) {
         localNotificationManager.show(
