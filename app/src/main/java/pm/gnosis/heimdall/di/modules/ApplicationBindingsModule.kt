@@ -52,6 +52,10 @@ abstract class ApplicationBindingsModule {
     @Binds
     abstract fun bindsTransactionViewHolderBuilder(helper: DefaultTransactionViewHolderBuilder): TransactionViewHolderBuilder
 
+    // This is unscoped so it will get recreated each time it is injected
+    @Binds
+    abstract fun bindsMessageSignatureStore(helper: DefaultMessageSignatureStore): MessageSignatureStore
+
     @Binds
     @Singleton
     abstract fun bindsLocalNotificationManager(manager: AndroidLocalNotificationManager): LocalNotificationManager

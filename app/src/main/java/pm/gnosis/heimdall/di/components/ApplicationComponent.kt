@@ -13,6 +13,7 @@ import pm.gnosis.heimdall.di.modules.ApplicationModule
 import pm.gnosis.heimdall.di.modules.InterceptorsModule
 import pm.gnosis.heimdall.di.modules.ViewModelFactoryModule
 import pm.gnosis.heimdall.helpers.AddressHelper
+import pm.gnosis.heimdall.helpers.MessageSignatureStore
 import pm.gnosis.heimdall.helpers.ToolbarHelper
 import pm.gnosis.heimdall.helpers.TransactionTriggerManager
 import pm.gnosis.heimdall.reporting.CrashTracker
@@ -57,7 +58,8 @@ interface ApplicationComponent {
     fun addressHelper(): AddressHelper
     fun toolbarHelper(): ToolbarHelper
     fun picasso(): Picasso
-    fun eop712JsonParser(): EIP712JsonParser
+    fun eip712JsonParser(): EIP712JsonParser
+    fun messageSignatureStore(): MessageSignatureStore
 
     // Base injects
     fun inject(activity: BaseActivity)
