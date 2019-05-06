@@ -43,6 +43,8 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
 
     private var transactionInfoViewHolder: TransactionInfoViewHolder? = null
 
+    private var referenceId: Long? = null
+
     private val unlockStatusSubject = PublishSubject.create<Unit>()
 
     override fun screenId() = ScreenId.TRANSACTION_REVIEW
@@ -63,7 +65,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
             return
         }
 
-        val referenceId = if(intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
+        referenceId = if(intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
         viewModel.setup(safeAddress, referenceId)
         infoViewHelper.bind(layout_review_transaction_transaction_info)
     }
@@ -113,15 +115,19 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         when (update) {
             is ViewUpdate.TransactionInfo ->
                 setupViewHolder(update.viewHolder)
-            is SubmitTransactionHelper.ViewUpdate.TransactionSubmitted -> {
+            is ViewUpdate.TransactionSubmitted -> {
                 if (update.success) {
-                    startActivity(
-                        SafeMainActivity.createIntent(
-                            this,
-                            null,
-                            R.string.tab_title_transactions
+                    if (referenceId == null) {
+                        startActivity(
+                                SafeMainActivity.createIntent(
+                                        this,
+                                        null,
+                                        R.string.tab_title_transactions
+                                )
                         )
-                    )
+                    } else {
+                        finish()
+                    }
                 } else {
                     infoViewHelper.toggleReadyState(true)
                 }
