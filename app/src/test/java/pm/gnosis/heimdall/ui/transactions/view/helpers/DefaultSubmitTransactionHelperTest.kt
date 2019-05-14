@@ -352,7 +352,7 @@ class DefaultSubmitTransactionHelperTest {
             signaturePushRepository.propagateSubmittedTransaction(anyString(), anyString(), anySet())
         ).willReturn(Completable.error(TimeoutException()))
         submitEvents.onNext(Unit)
-        updates += { it == DataResult(SubmitTransactionHelper.ViewUpdate.TransactionSubmitted(true)) }
+        updates += { it == DataResult(SubmitTransactionHelper.ViewUpdate.TransactionSubmitted(true, TEST_CHAIN_HASH)) }
         testObserver.assertUpdates(updates)
         then(signaturePushRepository).should()
             .propagateSubmittedTransaction(TEST_TRANSACTION_HASH, TEST_CHAIN_HASH, setOf(TEST_OWNERS[0], TEST_OWNERS[1]))
@@ -379,7 +379,7 @@ class DefaultSubmitTransactionHelperTest {
             signaturePushRepository.propagateSubmittedTransaction(anyString(), anyString(), anySet())
         ).willReturn(Completable.complete())
         submitEvents.onNext(Unit)
-        updates += { it == DataResult(SubmitTransactionHelper.ViewUpdate.TransactionSubmitted(true)) }
+        updates += { it == DataResult(SubmitTransactionHelper.ViewUpdate.TransactionSubmitted(true, TEST_CHAIN_HASH)) }
         testObserver.assertUpdates(updates)
         then(signaturePushRepository).should(times(2))
             .propagateSubmittedTransaction(TEST_TRANSACTION_HASH, TEST_CHAIN_HASH, setOf(TEST_OWNERS[0], TEST_OWNERS[1]))
@@ -708,6 +708,7 @@ class DefaultSubmitTransactionHelperTest {
         relayRepositoryMock.loadExecuteInformation(TEST_SAFE, TEST_ETHER_TOKEN, transaction)
 
     private fun TestObserver<Result<SubmitTransactionHelper.ViewUpdate>>.assertUpdates(updates: List<((Result<SubmitTransactionHelper.ViewUpdate>) -> Boolean)>): TestObserver<Result<SubmitTransactionHelper.ViewUpdate>> {
+        System.out.println(values())
         assertValueCount(updates.size)
         updates.forEachIndexed { index, predicate ->
             assertValueAt(index, predicate)

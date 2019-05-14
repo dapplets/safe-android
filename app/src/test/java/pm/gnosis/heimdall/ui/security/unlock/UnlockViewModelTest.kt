@@ -16,6 +16,7 @@ import org.mockito.junit.MockitoJUnitRunner
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.repositories.PushServiceRepository
 import pm.gnosis.heimdall.ui.exceptions.SimpleLocalizedException
+import pm.gnosis.svalinn.common.PreferencesManager
 import pm.gnosis.svalinn.common.utils.DataResult
 import pm.gnosis.svalinn.common.utils.ErrorResult
 import pm.gnosis.svalinn.common.utils.Result
@@ -37,15 +38,21 @@ class UnlockViewModelTest {
     lateinit var encryptionManagerMock: EncryptionManager
 
     @Mock
+    lateinit var preferencesManagerMock: PreferencesManager
+
+    @Mock
     private lateinit var pushServiceRepositoryMock: PushServiceRepository
 
     lateinit var viewModel: UnlockViewModel
 
     @Before
     fun setup() {
-        viewModel = UnlockViewModel(contextMock, encryptionManagerMock, pushServiceRepositoryMock)
+        given(preferencesManagerMock.prefs).willReturn(TestPreferences().apply { putLong("prefs.long.last_unlock", Long.MIN_VALUE) })
+        viewModel = UnlockViewModel(contextMock, encryptionManagerMock, preferencesManagerMock, pushServiceRepositoryMock)
         given(contextMock.getString(anyInt(), any())).willReturn(TEST_STRING)
     }
+
+    // TODO add test for credentials skip with unlock timer
 
     @Test
     fun checkStateUnlocked() {
@@ -103,10 +110,12 @@ class UnlockViewModelTest {
     @Test
     fun checkStateWithCheckCredentials() {
         val observer = createObserver()
+        given(encryptionManagerMock.unlocked()).willReturn(Single.just(false))
         given(encryptionManagerMock.initialized()).willReturn(Single.just(true))
 
         viewModel.checkState(true).subscribe(observer)
 
+        then(encryptionManagerMock).should().unlocked()
         then(encryptionManagerMock).should().initialized()
         then(encryptionManagerMock).shouldHaveNoMoreInteractions()
         observer.assertNoErrors().assertValue(DataResult(UnlockContract.State.LOCKED))
@@ -115,11 +124,13 @@ class UnlockViewModelTest {
     @Test
     fun checkStateWithCheckCredentialsUninitialized() {
         val observer = createObserver()
+        given(encryptionManagerMock.unlocked()).willReturn(Single.just(false))
         given(encryptionManagerMock.initialized()).willReturn(Single.just(false))
 
         viewModel.checkState(true).subscribe(observer)
 
         then(encryptionManagerMock).should().initialized()
+        then(encryptionManagerMock).should().unlocked()
         then(encryptionManagerMock).shouldHaveNoMoreInteractions()
         observer.assertNoErrors().assertValue(DataResult(UnlockContract.State.UNINITIALIZED))
     }
@@ -128,11 +139,13 @@ class UnlockViewModelTest {
     fun checkStateWithCheckCredentialsError() {
         val observer = createObserver()
         val exception = IllegalStateException()
+        given(encryptionManagerMock.unlocked()).willReturn(Single.just(false))
         given(encryptionManagerMock.initialized()).willReturn(Single.error(exception))
 
         viewModel.checkState(true).subscribe(observer)
 
         then(encryptionManagerMock).should().initialized()
+        then(encryptionManagerMock).should().unlocked()
         then(encryptionManagerMock).shouldHaveNoMoreInteractions()
         observer.assertNoErrors().assertValue(ErrorResult(exception))
     }

@@ -60,7 +60,7 @@ class ConfirmTransactionViewModelTest {
     @Test
     fun setup() {
         var executionInfo: ((SafeTransaction) -> Single<TransactionExecutionRepository.ExecuteInformation>)? = null
-        given(submitTransactionHelper.setup(MockUtils.any(), MockUtils.any(), MockUtils.any())).will {
+        given(submitTransactionHelper.setup(MockUtils.any(), MockUtils.any(), MockUtils.any(), MockUtils.any())).will {
             executionInfo = it.arguments[1] as ((SafeTransaction) -> Single<TransactionExecutionRepository.ExecuteInformation>)?
             Unit
         }
@@ -70,7 +70,7 @@ class ConfirmTransactionViewModelTest {
             TEST_NONCE, TEST_SIGNATURE
         )
 
-        then(submitTransactionHelper).should().setup(TEST_SAFE, executionInfo!!)
+        then(submitTransactionHelper).should().setup(MockUtils.eq(TEST_SAFE), MockUtils.eq(executionInfo!!), MockUtils.eq(null), MockUtils.any())
         then(submitTransactionHelper).shouldHaveNoMoreInteractions()
 
         val info = TransactionExecutionRepository.SafeExecuteState(
@@ -153,7 +153,7 @@ class ConfirmTransactionViewModelTest {
 
         observer.assertNoValues().assertNoErrors().assertComplete()
 
-        then(submitTransactionHelper).should().setup(MockUtils.any(), MockUtils.any(), MockUtils.any())
+        then(submitTransactionHelper).should().setup(MockUtils.any(), MockUtils.any(), MockUtils.any(), MockUtils.any())
         then(submitTransactionHelper).should().observe(events, transactionData, setOf(TEST_SIGNATURE))
         then(submitTransactionHelper).shouldHaveNoMoreInteractions()
 
@@ -183,7 +183,7 @@ class ConfirmTransactionViewModelTest {
 
         observer.assertError(expected).assertNoValues()
 
-        then(submitTransactionHelper).should().setup(MockUtils.any(), MockUtils.any(), MockUtils.any())
+        then(submitTransactionHelper).should().setup(MockUtils.any(), MockUtils.any(), MockUtils.any(), MockUtils.any())
         then(submitTransactionHelper).shouldHaveNoMoreInteractions()
 
         then(relayRepositoryMock).shouldHaveNoMoreInteractions()
@@ -236,7 +236,7 @@ class ConfirmTransactionViewModelTest {
 
         observer.assertError(error).assertNoValues()
 
-        then(submitTransactionHelper).should().setup(MockUtils.any(), MockUtils.any(), MockUtils.any())
+        then(submitTransactionHelper).should().setup(MockUtils.any(), MockUtils.any(), MockUtils.any(), MockUtils.any())
         then(submitTransactionHelper).shouldHaveNoMoreInteractions()
 
         then(relayRepositoryMock).shouldHaveNoMoreInteractions()
@@ -267,14 +267,18 @@ class ConfirmTransactionViewModelTest {
         )
             .willReturn(Completable.complete())
 
+        given(accountsRepositoryMock.recover(MockUtils.any(), MockUtils.any())).willReturn(Single.just(TEST_ADDITIONAL_TARGET))
         val rejectObserver = TestObserver<Unit>()
         viewModel.rejectTransaction(TEST_TRANSACTION).subscribe(rejectObserver)
         rejectObserver.assertNoErrors().assertComplete()
 
+        then(accountsRepositoryMock).should().recover(TEST_TRANSACTION_HASH.hexToByteArray(), TEST_SIGNATURE)
+        then(accountsRepositoryMock).shouldHaveNoMoreInteractions()
+
         then(relayRepositoryMock).should().loadSafeExecuteState(TEST_SAFE, TEST_GAS_TOKEN)
         then(relayRepositoryMock).should().notifyReject(
             TEST_SAFE, TEST_TRANSACTION, TEST_TX_GAS, TEST_DATA_GAS, TEST_GAS_PRICE, TEST_GAS_TOKEN,
-            (TEST_OWNERS - TEST_OWNERS[2]).toSet(), TEST_VERSION
+            (TEST_OWNERS - TEST_OWNERS[2] + TEST_ADDITIONAL_TARGET).toSet(), TEST_VERSION
         )
         then(relayRepositoryMock).shouldHaveNoMoreInteractions()
 
@@ -283,7 +287,7 @@ class ConfirmTransactionViewModelTest {
         cachedObserver.assertNoErrors().assertComplete()
         then(relayRepositoryMock).should(times(2)).notifyReject(
             TEST_SAFE, TEST_TRANSACTION, TEST_TX_GAS, TEST_DATA_GAS, TEST_GAS_PRICE, TEST_GAS_TOKEN,
-            (TEST_OWNERS - TEST_OWNERS[2]).toSet(), TEST_VERSION
+            (TEST_OWNERS - TEST_OWNERS[2] + TEST_ADDITIONAL_TARGET).toSet(), TEST_VERSION
         )
         then(relayRepositoryMock).shouldHaveNoMoreInteractions()
     }
@@ -293,6 +297,7 @@ class ConfirmTransactionViewModelTest {
         private const val TEST_TRANSACTION_HASH = "0x255ed2f7cbd18dfdccbd729cf78297c1bd2943cd62c16bcacefb4c792d082322"
         private val TEST_TRANSACTION =
             SafeTransaction(Transaction(Solidity.Address(BigInteger.ZERO)), TransactionExecutionRepository.Operation.CALL)
+        private val TEST_ADDITIONAL_TARGET = Solidity.Address(BigInteger.valueOf(11235))
         private val TEST_SIGNERS = listOf(BigInteger.valueOf(7), BigInteger.valueOf(13)).map { Solidity.Address(it) }
         private val TEST_OWNERS = TEST_SIGNERS + Solidity.Address(BigInteger.valueOf(5))
         private val TEST_OPERATIONAL_GAS = BigInteger.valueOf(12345)

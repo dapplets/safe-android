@@ -126,12 +126,9 @@ android {
             versionNameSuffix "-nyan"
             debuggable true
             signingConfig signingConfigs.debug
-            buildConfigField javaTypes.STRING, "BLOCKCHAIN_NET_URL", asString(getKey("BLOCKCHAIN_NET_URL", "https://mainnet.infura.io"))
+            buildConfigField javaTypes.LONG, "BLOCKCHAIN_CHAIN_ID", getKey("BLOCKCHAIN_CHAIN_ID", "1")
+            buildConfigField javaTypes.STRING, "BLOCKCHAIN_NET_URL", asString(getKey("BLOCKCHAIN_NET_URL", "https://mainnet.infura.io/v3/"))
             buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.gnosis.pm/api/"))
-            buildConfigField javaTypes.STRING, "VERIFIED_TOKEN_SERVICE_URL", asString(getKey("VERIFIED_TOKEN_SERVICE_URL", "https://raw.githubusercontent.com/rmeissner/crypto_resources/master/tokens/mainnet/"))
-            buildConfigField javaTypes.STRING, "VERIFIED_TOKEN_SERVICE_ENDPOINT", asString(getKey("VERIFIED_TOKEN_SERVICE_ENDPOINT", "tokens.json"))
-            buildConfigField javaTypes.STRING, "SAFE_MASTER_COPY_ADDRESS", asString(getKey("SAFE_MASTER_COPY_ADDRESS", "0xAC6072986E985aaBE7804695EC2d8970Cf7541A2"))
-            buildConfigField javaTypes.STRING, "MULTI_SEND_ADDRESS", asString(getKey("MULTI_SEND_ADDRESS", "0x5bb83eC2a142e733ff921EeB84b379C6C3193FEB"))
             buildConfigField javaTypes.STRING, "SAFE_CREATION_FUNDER", asString(getKey("SAFE_CREATION_FUNDER", "0x07F455F30e862E13E3E3D960762cB11c4F744d52"))
         }
     }
