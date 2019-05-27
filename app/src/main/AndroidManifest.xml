@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="pm.gnosis.heimdall">
 
+    <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <uses-permission android:name="android.permission.VIBRATE" />

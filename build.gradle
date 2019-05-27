@@ -36,7 +36,7 @@ subprojects {
                 buildToolsVersion "28.0.3"
 
                 defaultConfig {
-                    minSdkVersion 19
+                    minSdkVersion 24
                     targetSdkVersion 28
                 }
 

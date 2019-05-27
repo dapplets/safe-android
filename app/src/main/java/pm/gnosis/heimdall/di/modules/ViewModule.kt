@@ -14,6 +14,7 @@ import pm.gnosis.heimdall.ui.account.AccountContract
 import pm.gnosis.heimdall.ui.addressbook.AddressBookContract
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsContract
 import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputContract
+import pm.gnosis.heimdall.ui.dialogs.nfc.NfcSigningContract
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageContract
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupContract
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupContract
@@ -118,6 +119,10 @@ class ViewModule(val context: Context) {
     @Provides
     @ForView
     fun providesManageTokensContract(provider: ViewModelProvider) = provider[ManageTokensContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesNfcSigningContract(provider: ViewModelProvider) = provider[NfcSigningContract::class.java]
 
     @Provides
     @ForView

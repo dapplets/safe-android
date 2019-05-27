@@ -34,6 +34,7 @@ import pm.gnosis.heimdall.ui.base.Adapter
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsActivity
 import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputDialog
+import pm.gnosis.heimdall.ui.dialogs.nfc.NfcSigningDialog
 import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeIntroActivity
 import pm.gnosis.heimdall.ui.safe.details.SafeDetailsFragment
@@ -131,7 +132,8 @@ class SafeMainActivity : ViewModelActivity<SafeMainContract>() {
 
         disposables += layout_safe_main_toolbar_overflow.clicks()
             .subscribeBy {
-                popupMenu.show()
+                NfcSigningDialog.create("0xdeadbeef").show(supportFragmentManager, null)
+                //popupMenu.show()
                 eventTracker.submit(Event.ScreenView(ScreenId.SAFE_SETTINGS))
             }
 

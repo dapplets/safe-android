@@ -66,6 +66,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
             return
         }
 
+
         referenceId = if(intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
         viewModel.setup(safeAddress, referenceId)
         infoViewHelper.bind(layout_review_transaction_transaction_info)
