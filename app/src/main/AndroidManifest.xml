@@ -260,6 +260,17 @@
             android:theme="@style/WhiteTheme" />
 
         <activity
+            android:name=".ui.messagesigning.SignatureRequestActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/WhiteTheme" />
+
+
+        <activity
+            android:name=".ui.messagesigning.SignatureRequestDetailsActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/WhiteTheme" />
+
+        <activity
             android:name=".ui.walletconnect.sessions.WalletConnectSessionsActivity"
             android:screenOrientation="portrait"
             android:theme="@style/GreyBackgroundTheme" />
