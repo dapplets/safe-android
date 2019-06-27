@@ -384,6 +384,8 @@ class DefaultGnosisSafeRepository @Inject constructor(
 
     override fun sign(safeAddress: Solidity.Address, data: ByteArray): Single<Signature> = accountsRepository.sign(safeAddress, data)
 
+    override suspend fun signSuspend(safeAddress: Solidity.Address, data: ByteArray): Signature = accountsRepository.signSuspend(safeAddress, data)
+
     private class SafeInfoRequest(
         val balance: EthRequest<Wei>,
         val threshold: EthRequest<String>,

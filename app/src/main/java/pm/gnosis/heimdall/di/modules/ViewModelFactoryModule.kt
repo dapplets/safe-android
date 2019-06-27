@@ -114,6 +114,11 @@ abstract class ViewModelFactoryModule {
 
     @Binds
     @IntoMap
+    @ViewModelKey(SignatureRequestContract::class)
+    abstract fun bindsSignatureRequestContract(viewModel: SignatureRequestViewModel): ViewModel
+
+    @Binds
+    @IntoMap
     @ViewModelKey(ConfirmTransactionContract::class)
     abstract fun bindsConfirmTransactionContract(viewModel: ConfirmTransactionViewModel): ViewModel
 

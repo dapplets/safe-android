@@ -36,6 +36,7 @@ interface PushServiceRepository {
     fun handlePushMessage(pushMessage: PushMessage)
     fun calculateRejectionHash(transactionHash: ByteArray): Single<ByteArray>
     fun sendTypedDataConfirmation(hash: ByteArray, signature: ByteArray, safe: Solidity.Address, targets: Set<Solidity.Address>): Completable
+    //suspend fun sendTypedDataConfirmationSuspend(hash: ByteArray, signature: ByteArray, safe: Solidity.Address, targets: Set<Solidity.Address>)
 
     sealed class TransactionResponse {
         data class Confirmed(val signature: Signature) : TransactionResponse()

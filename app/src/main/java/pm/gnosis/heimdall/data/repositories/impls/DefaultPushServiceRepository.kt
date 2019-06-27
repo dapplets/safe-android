@@ -27,6 +27,7 @@ import pm.gnosis.heimdall.di.ApplicationContext
 import pm.gnosis.heimdall.helpers.CryptoHelper
 import pm.gnosis.heimdall.helpers.LocalNotificationManager
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageActivity
+import pm.gnosis.heimdall.ui.messagesigning.SignatureRequestActivity
 import pm.gnosis.heimdall.ui.safe.main.SafeMainActivity
 import pm.gnosis.heimdall.ui.transactions.view.confirm.ConfirmTransactionActivity
 import pm.gnosis.model.Solidity
@@ -318,7 +319,9 @@ class DefaultPushServiceRepository @Inject constructor(
             signTypedData.safe.hashCode(),
             context.getString(R.string.sign_message_notification_title),
             context.getString(R.string.sign_message_notification_description),
-            ConfirmMessageActivity.createIntent(
+
+            SignatureRequestActivity.createIntent(
+            //ConfirmMessageActivity.createIntent(
                 context = context,
                 payload = signTypedData.payload,
                 safe = signTypedData.safe,

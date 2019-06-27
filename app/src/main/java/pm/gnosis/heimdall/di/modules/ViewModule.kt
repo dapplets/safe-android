@@ -16,6 +16,7 @@ import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputContract
 import pm.gnosis.heimdall.ui.messagesigning.CollectMessageSignaturesContract
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageContract
 import pm.gnosis.heimdall.ui.messagesigning.ReviewPayloadContract
+import pm.gnosis.heimdall.ui.messagesigning.SignatureRequestContract
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupContract
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupContract
 import pm.gnosis.heimdall.ui.recoveryphrase.ConfirmRecoveryPhraseContract
@@ -81,6 +82,10 @@ class ViewModule(val context: Context) {
     @Provides
     @ForView
     fun providesConfirmMessageContract(provider: ViewModelProvider) = provider[ConfirmMessageContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesSignatureRequestContract(provider: ViewModelProvider) = provider[SignatureRequestContract::class.java]
 
     @Provides
     @ForView

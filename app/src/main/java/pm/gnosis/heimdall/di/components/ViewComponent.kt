@@ -13,6 +13,7 @@ import pm.gnosis.heimdall.ui.dialogs.share.SimpleAddressShareDialog
 import pm.gnosis.heimdall.ui.messagesigning.CollectMessageSignaturesActivity
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageActivity
 import pm.gnosis.heimdall.ui.messagesigning.ReviewPayloadActivity
+import pm.gnosis.heimdall.ui.messagesigning.SignatureRequestActivity
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupActivity
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordConfirmActivity
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupActivity
@@ -129,6 +130,8 @@ interface ViewComponent {
     fun inject(activity: WalletConnectIntroActivity)
     fun inject(activity: WalletConnectLinkActivity)
     fun inject(activity: WalletConnectSessionsActivity)
+
+    fun inject(activity: SignatureRequestActivity)
 
     // Dialogs
 
