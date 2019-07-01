@@ -52,14 +52,17 @@ abstract class ApplicationBindingsModule {
     @Binds
     abstract fun bindsTransactionViewHolderBuilder(helper: DefaultTransactionViewHolderBuilder): TransactionViewHolderBuilder
 
-    // Scoped Helpers
+    // This is unscoped so it will get recreated each time it is injected
+    @Binds
+    abstract fun bindsMessageSignatureStore(helper: DefaultMessageSignatureStore): MessageSignatureStore
+
+    /*
+        Scoped Helpers
+     */
 
     @Binds
     @Singleton
     abstract fun bindsCryptoHelper(manager: SvalinnCryptoHelper): CryptoHelper
-    // This is unscoped so it will get recreated each time it is injected
-    @Binds
-    abstract fun bindsMessageSignatureStore(helper: DefaultMessageSignatureStore): MessageSignatureStore
 
     @Binds
     @Singleton

@@ -56,6 +56,8 @@ class DefaultPushServiceRepository @Inject constructor(
 
     private val observedTransaction = HashMap<BigInteger, ReceiveSignatureObservable>()
 
+    private val signTypedDataConfirmationsSubject = PublishSubject.create<PushMessage.SignTypedDataConfirmation>()
+
     /*
     * Situations where a sync might be needed:
     * • Account changes
@@ -300,8 +302,6 @@ class DefaultPushServiceRepository @Inject constructor(
             is PushMessage.SignTypedDataConfirmation -> signTypedDataConfirmationsSubject.onNext(pushMessage)
         }
     }
-
-    private val signTypedDataConfirmationsSubject = PublishSubject.create<PushMessage.SignTypedDataConfirmation>()
 
     override fun observeTypedDataConfirmationPushes(): Observable<PushMessage.SignTypedDataConfirmation> = signTypedDataConfirmationsSubject
 
