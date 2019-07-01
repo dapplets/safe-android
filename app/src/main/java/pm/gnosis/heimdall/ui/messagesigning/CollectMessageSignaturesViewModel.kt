@@ -9,7 +9,7 @@ import pm.gnosis.heimdall.data.remote.models.push.PushMessage
 import pm.gnosis.heimdall.data.repositories.AccountsRepository
 import pm.gnosis.heimdall.data.repositories.PushServiceRepository
 import pm.gnosis.heimdall.helpers.CryptoHelper
-import pm.gnosis.heimdall.helpers.MessageSignatureStore
+import pm.gnosis.heimdall.helpers.SignatureStore
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.accounts.base.models.Signature
 import pm.gnosis.utils.toHexString
@@ -20,7 +20,7 @@ class CollectMessageSignaturesViewModel @Inject constructor(
     private val accountsRepository: AccountsRepository,
     private val eiP712JsonParser: EIP712JsonParser,
     private val pushServiceRepository: PushServiceRepository,
-    private val messageSignatureStore: MessageSignatureStore,
+    private val messageSignatureStore: SignatureStore,
     private val cryptoHelper: CryptoHelper
 ) : CollectMessageSignaturesContract() {
     override val uiEvents = PublishSubject.create<UIEvent>()
@@ -51,7 +51,7 @@ class CollectMessageSignaturesViewModel @Inject constructor(
             .replay(1)
             .autoConnect()
 
-    private val storeObservable by lazy { messageSignatureStore.observe() }
+    private val storeObservable by lazy { messageSignatureStore.observe().map { setOf(*it.values.toTypedArray()) } }
 
     private val payloadHash by lazy {
         val hash = eiP712JsonParser.parseMessage(viewArguments.payload).let { typedDataHash(message = it.message, domain = it.domain) }
@@ -180,7 +180,7 @@ class CollectMessageSignaturesViewModel @Inject constructor(
                     cryptoHelper.recover(payloadHash, signature)
                 )
                     .filter { recoveredAddress -> viewArguments.owners.contains(recoveredAddress) }
-                    .map { messageSignatureStore.store(signature) }
+                    .map { messageSignatureStore.add(Pair(it, signature)) }
                     .toSingle()
             }
     }

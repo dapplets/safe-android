@@ -14,7 +14,6 @@ import pm.gnosis.heimdall.di.modules.InterceptorsModule
 import pm.gnosis.heimdall.di.modules.ViewModelFactoryModule
 import pm.gnosis.heimdall.helpers.AddressHelper
 import pm.gnosis.heimdall.helpers.AppInitManager
-import pm.gnosis.heimdall.helpers.MessageSignatureStore
 import pm.gnosis.heimdall.helpers.ToolbarHelper
 import pm.gnosis.heimdall.reporting.CrashTracker
 import pm.gnosis.heimdall.reporting.EventTracker
@@ -53,7 +52,6 @@ interface ApplicationComponent {
     fun toolbarHelper(): ToolbarHelper
     fun picasso(): Picasso
     fun eip712JsonParser(): EIP712JsonParser
-    fun messageSignatureStore(): MessageSignatureStore
 
     fun appDispatchers(): AppCoroutineDispatchers
 

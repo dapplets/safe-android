@@ -116,7 +116,7 @@ class SignatureRequestViewModel @Inject constructor(
                 throw ConfirmMessageContract.ErrorRecoveringSender
             }
 
-            val signatureBytes = async {  gnosisSafeRepository.sign(viewArguments.safe, safeMessageHash) }.await().toString().hexStringToByteArray()
+            val signatureBytes = async {  gnosisSafeRepository.sign(viewArguments.safe, safeMessageHash).await() }.await().toString().hexStringToByteArray()
 
             try {
                 pushServiceRepository.sendTypedDataConfirmation(
