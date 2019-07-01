@@ -47,9 +47,6 @@ interface GnosisSafeDao {
     @Query("SELECT * FROM ${GnosisSafeInfoDb.TABLE_NAME} WHERE ${GnosisSafeInfoDb.COL_SAFE_ADDRESS} = :safeAddress")
     fun loadSafeInfo(safeAddress: Solidity.Address): Single<GnosisSafeInfoDb>
 
-    @Query("SELECT * FROM ${GnosisSafeInfoDb.TABLE_NAME} WHERE ${GnosisSafeInfoDb.COL_SAFE_ADDRESS} = :safeAddress")
-    suspend fun loadSafeInfoSuspend(safeAddress: Solidity.Address): GnosisSafeInfoDb
-
     @Query("SELECT * FROM ${GnosisSafeInfoDb.TABLE_NAME}")
     fun loadSafeInfos(): Single<List<GnosisSafeInfoDb>>
 

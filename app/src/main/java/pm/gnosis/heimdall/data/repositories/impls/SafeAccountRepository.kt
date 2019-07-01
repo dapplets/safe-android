@@ -3,9 +3,6 @@ package pm.gnosis.heimdall.data.repositories.impls
 import io.reactivex.Completable
 import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.rx2.await
 import okio.ByteString
 import pm.gnosis.crypto.KeyGenerator
 import pm.gnosis.heimdall.R
@@ -93,32 +90,11 @@ class SafeAccountRepository @Inject constructor(
             }
             .subscribeOn(Schedulers.io())
 
-    override suspend fun signingOwnerSuspend(safeAddress: Solidity.Address): AccountsRepository.SafeOwner {
-
-
-        var result: AccountsRepository.SafeOwner? = null
-        runBlocking {
-            val safeInfo = async { safeDao.loadSafeInfoSuspend(safeAddress) }.await()
-            if (safeInfo != null) {
-                result = AccountsRepository.SafeOwner(safeInfo.ownerAddress, safeInfo.ownerPrivateKey)
-            } else {
-                val account = accountsDatabase.accountsDao().observeAccounts().subscribeOn(Schedulers.io()).await()
-                result = AccountsRepository.SafeOwner(account.address, account.privateKey)
-            }
-        }
-        return result!!
-    }
-
-
     override fun sign(safeAddress: Solidity.Address, data: ByteArray): Single<Signature> =
         signingOwner(safeAddress)
             .flatMap { sign(it, data) }
             .subscribeOn(Schedulers.computation())
 
-    override suspend fun signSuspend(safeAddress: Solidity.Address, data: ByteArray): Signature {
-        val signingOwner = signingOwnerSuspend(safeAddress)
-        return sign(signingOwner.address, data).subscribeOn(Schedulers.io()).await()
-    }
 
     override fun sign(safeOwner: AccountsRepository.SafeOwner, data: ByteArray): Single<Signature> =
         Single.fromCallable {

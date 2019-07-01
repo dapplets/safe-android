@@ -24,11 +24,7 @@ interface AccountsRepository {
 
     fun signingOwner(safeAddress: Solidity.Address): Single<SafeOwner>
 
-    suspend fun signingOwnerSuspend(safeAddress: Solidity.Address): SafeOwner
-
     fun sign(safeAddress: Solidity.Address, data: ByteArray): Single<Signature>
-
-    suspend fun signSuspend(safeAddress: Solidity.Address, data: ByteArray): Signature
 
     fun sign(safeOwner: SafeOwner, data: ByteArray): Single<Signature>
 

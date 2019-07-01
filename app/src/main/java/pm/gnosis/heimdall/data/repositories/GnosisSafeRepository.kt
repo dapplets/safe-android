@@ -86,6 +86,4 @@ interface GnosisSafeRepository {
     fun saveOwner(safeAddress: Solidity.Address, safeOwner: AccountsRepository.SafeOwner): Completable
 
     fun sign(safeAddress: Solidity.Address, data: ByteArray): Single<Signature>
-
-    suspend fun signSuspend(safeAddress: Solidity.Address, data: ByteArray): Signature
 }
