@@ -4,11 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.lifecycle.Observer
-import okio.internal.commonAsUtf8ToByteArray
-import okio.internal.commonToUtf8String
-import pm.gnosis.eip712.Literal712
-import pm.gnosis.eip712.encodeSolidityType
-import pm.gnosis.eip712.typedDataHash
+import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
 import kotlinx.android.synthetic.main.screen_signature_request.signature_request_root as root
 import kotlinx.android.synthetic.main.screen_signature_request.signature_request_barrier_bottom_panel as bottomPanel
 import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_address as safeAddressLabel
@@ -59,7 +55,7 @@ class SignatureRequestActivity : ViewModelActivity<SignatureRequestContract>() {
 
 
         bottomPanel.disabled = false
-        safeAddressLabel.text = safe.asEthereumAddressString()
+        safeAddressLabel.text = safe.asEthereumAddressChecksumString()
         safeImage.setAddress(safe)
 
 
@@ -97,9 +93,6 @@ class SignatureRequestActivity : ViewModelActivity<SignatureRequestContract>() {
             finish()
         }
         bottomPanel.disabled = viewUpdate.isLoading
-
-        //dappNameLabel.text = encodeSolidityType((viewUpdate?.domain?.parameters?.find { it.name == "name" }?.type as Literal712).value).commonToUtf8String()
-
 
     }
     companion object {
