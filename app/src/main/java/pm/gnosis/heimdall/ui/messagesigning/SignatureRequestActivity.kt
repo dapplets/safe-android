@@ -104,11 +104,12 @@ class SignatureRequestActivity : ViewModelActivity<SignatureRequestContract>() {
         private const val SAFE_EXTRA = "extra.string.safe"
         private const val EXTENSION_SIGNATURE_EXTRA = "extra.string.extension_signature"
 
-        fun createIntent(context: Context, payload: String, safe: Solidity.Address, extensionSignature: Signature) =
+        fun createIntent(context: Context, payload: String, safe: Solidity.Address, extensionSignature: Signature): Intent =
             Intent(context, SignatureRequestActivity::class.java).apply {
                 putExtra(PAYLOAD_EXTRA, payload)
                 putExtra(SAFE_EXTRA, safe.asEthereumAddressString())
                 putExtra(EXTENSION_SIGNATURE_EXTRA, extensionSignature.toString())
+                addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
     }
 }
