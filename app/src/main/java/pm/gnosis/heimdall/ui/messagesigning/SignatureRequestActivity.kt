@@ -5,30 +5,28 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.lifecycle.Observer
 import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_root as root
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_barrier_bottom_panel as bottomPanel
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_address as safeAddressLabel
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_name as safeNameLabel
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_image as safeImage
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_balance as safeBalance
-
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_dapp_name as dappNameLabel
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_dapp_contract_address as dappAddressLabel
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_dapp_contract_img as dappImage
-
-import kotlinx.android.synthetic.main.screen_signature_request.signature_request_show_message as showMessageBtn
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.di.components.ViewComponent
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
+import pm.gnosis.heimdall.utils.asMiddleEllipsized
 import pm.gnosis.model.Solidity
-import pm.gnosis.model.SolidityBase
 import pm.gnosis.svalinn.accounts.base.models.Signature
 import pm.gnosis.svalinn.common.utils.snackbar
 import pm.gnosis.svalinn.common.utils.toast
 import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.asEthereumAddressString
-import pm.gnosis.utils.nullOnThrow
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_barrier_bottom_panel as bottomPanel
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_toolbar_back_btn as backBtn
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_dapp_contract_address as dappAddressLabel
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_dapp_contract_img as dappImage
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_dapp_name as dappNameLabel
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_root as root
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_address as safeAddressLabel
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_balance as safeBalanceLabel
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_image as safeImage
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_safe_name as safeNameLabel
+import kotlinx.android.synthetic.main.screen_signature_request.signature_request_show_message as showMessageBtn
 
 class SignatureRequestActivity : ViewModelActivity<SignatureRequestContract>() {
 
@@ -47,31 +45,23 @@ class SignatureRequestActivity : ViewModelActivity<SignatureRequestContract>() {
         val safe = intent.getStringExtra(SAFE_EXTRA)?.asEthereumAddress() ?: run { finish(); return }
         val extensionSignature = intent.getStringExtra(EXTENSION_SIGNATURE_EXTRA)?.let { Signature.from(it) } ?: run { finish(); return }
 
-
         viewModel.setup(payload, safe, extensionSignature)
         viewModel.state.observe(this, Observer {
             onViewUpdate(it)
         })
 
-
-        bottomPanel.disabled = false
-        safeAddressLabel.text = safe.asEthereumAddressChecksumString()
-        safeImage.setAddress(safe)
-
-
-        (viewModel as SignatureRequestViewModel).parse()
-
-
-        bottomPanel.forwardClickAction = {
-
-            viewModel.confirmPayload()
+        backBtn.setOnClickListener {
+            finish()
         }
 
         showMessageBtn.setOnClickListener {
-            startActivity(SignatureRequestDetailsActivity.createIntent(this, payload))
+            startActivity(SignatureRequestDetailsActivity.createIntent(this, viewModel.viewData.domainPayload, viewModel.viewData.messagePayload))
         }
 
-
+        bottomPanel.disabled = false
+        bottomPanel.forwardClickAction = {
+            viewModel.confirmPayload()
+        }
     }
 
     private fun onViewUpdate(viewUpdate: SignatureRequestContract.ViewUpdate) {
@@ -92,9 +82,22 @@ class SignatureRequestActivity : ViewModelActivity<SignatureRequestContract>() {
             toast(R.string.confirmation_sent)
             finish()
         }
+
         bottomPanel.disabled = viewUpdate.isLoading
 
+        with(viewUpdate.viewData) {
+
+            safeImage.setAddress(safeAddress)
+            safeAddressLabel.text = safeAddress.asEthereumAddressChecksumString().asMiddleEllipsized(4)
+            safeNameLabel.text = safeName
+            safeBalanceLabel.text = safeBalance
+
+            dappImage.setAddress(dappAddress)
+            dappAddressLabel.text = dappAddress.asEthereumAddressChecksumString().asMiddleEllipsized(4)
+            dappNameLabel.text = dappName
+        }
     }
+
     companion object {
 
         private const val PAYLOAD_EXTRA = "extra.string.payload"

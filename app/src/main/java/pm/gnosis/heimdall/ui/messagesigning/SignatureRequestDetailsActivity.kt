@@ -6,10 +6,9 @@ import android.os.Bundle
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.BaseActivity
-
+import kotlinx.android.synthetic.main.screen_signature_request_details.signature_request_details_back_btn as backBtn
 import kotlinx.android.synthetic.main.screen_signature_request_details.signature_request_details_domain_label as domainLabel
 import kotlinx.android.synthetic.main.screen_signature_request_details.signature_request_details_message_label as messageLabel
-import kotlinx.android.synthetic.main.screen_signature_request_details.signature_request_details_back_btn as backBtn
 
 class SignatureRequestDetailsActivity : BaseActivity() {
 
@@ -23,12 +22,24 @@ class SignatureRequestDetailsActivity : BaseActivity() {
         backBtn.setOnClickListener {
             finish()
         }
+
+        intent.extras?.let {
+
+            domainLabel.text = it[EXTRA_DOMAIN] as String
+            messageLabel.text = it[EXTRA_MESSAGE] as String
+        } ?: finish()
     }
 
 
- companion object {
-     fun createIntent(context: Context, payload: String) =
-         Intent(context, SignatureRequestDetailsActivity::class.java)
- }
+    companion object {
 
+        private const val EXTRA_DOMAIN = "extra_domain"
+        private const val EXTRA_MESSAGE = "extra_message"
+
+        fun createIntent(context: Context, domain: String, message: String) =
+            Intent(context, SignatureRequestDetailsActivity::class.java).apply {
+                putExtra(EXTRA_DOMAIN, domain)
+                putExtra(EXTRA_MESSAGE, message)
+            }
+    }
 }

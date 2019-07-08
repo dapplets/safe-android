@@ -47,7 +47,7 @@
 
 
     <TextView
-        android:id="@+id/signature_request_details_domain_label"
+        android:id="@+id/signature_request_details_domain_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
@@ -62,7 +62,7 @@
         app:layout_constraintTop_toBottomOf="@+id/signature_request_details_back_btn" />
 
     <TextView
-        android:id="@+id/signature_request_details_domain"
+        android:id="@+id/signature_request_details_domain_label"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
@@ -75,7 +75,7 @@
         android:textStyle="normal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/signature_request_details_domain_label"
+        app:layout_constraintTop_toBottomOf="@+id/signature_request_details_domain_title"
         tools:text="domain: {
         name: &apos;CryptoKitties&apos;,
         version: &apos;1&apos;,
@@ -85,7 +85,7 @@
 
 
     <TextView
-        android:id="@+id/signature_request_details_message_label"
+        android:id="@+id/signature_request_details_message_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
@@ -97,11 +97,11 @@
         android:textSize="15sp"
         android:textStyle="bold"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/signature_request_details_domain" />
+        app:layout_constraintTop_toBottomOf="@+id/signature_request_details_domain_label" />
 
 
     <TextView
-        android:id="@+id/signature_request_details_message"
+        android:id="@+id/signature_request_details_message_label"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="24dp"
@@ -115,7 +115,7 @@
         android:textStyle="normal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/signature_request_details_message_label"
+        app:layout_constraintTop_toBottomOf="@+id/signature_request_details_message_title"
         tools:text="message: {
         from: {
             name: &apos;Cow&apos;,

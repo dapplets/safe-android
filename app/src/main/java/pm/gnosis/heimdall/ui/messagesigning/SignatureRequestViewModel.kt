@@ -2,22 +2,27 @@ package pm.gnosis.heimdall.ui.messagesigning
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.reactive.awaitFirst
 import kotlinx.coroutines.rx2.await
+import kotlinx.coroutines.rx2.awaitFirst
 import pm.gnosis.eip712.*
 import pm.gnosis.heimdall.data.repositories.AddressBookRepository
 import pm.gnosis.heimdall.data.repositories.GnosisSafeRepository
 import pm.gnosis.heimdall.data.repositories.PushServiceRepository
+import pm.gnosis.heimdall.data.repositories.models.ERC20Token
 import pm.gnosis.heimdall.helpers.CryptoHelper
+import pm.gnosis.heimdall.utils.getValue
 import pm.gnosis.heimdall.utils.shortChecksumString
+import pm.gnosis.heimdall.utils.toJson
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.accounts.base.models.Signature
 import pm.gnosis.utils.hexStringToByteArray
-import pm.gnosis.utils.nullOnThrow
 import javax.inject.Inject
 
 class SignatureRequestViewModel @Inject constructor(
@@ -28,65 +33,81 @@ class SignatureRequestViewModel @Inject constructor(
     private val addressBookRepository: AddressBookRepository
 ) : SignatureRequestContract() {
 
-    data class ViewArguments(
-        val payload: String,
-        val safe: Solidity.Address,
-        val signature: Signature,
-        val domain: Struct712?,
-        val message: Struct712?
-    )
+    override val viewData: ViewData
+        get() = _viewData
+    private lateinit var _viewData: ViewData
 
-    private lateinit var viewArguments: ViewArguments
+    private lateinit var safe: Solidity.Address
+    private lateinit var extensionSignature: Signature
+    private lateinit var domain: Struct712
+    private lateinit var message: Struct712
 
     override val state: MutableLiveData<ViewUpdate> = MutableLiveData()
 
-    override fun setup(payload: String, safe: Solidity.Address, signature: Signature) {
-        viewArguments = ViewArguments(payload = payload, safe = safe, signature = signature, domain = null, message = null)
-    }
+    override fun setup(payload: String, safe: Solidity.Address, extensionSignature: Signature) {
+
+        this.safe = safe
+        this.extensionSignature = extensionSignature
+
+        viewModelScope.launch(Dispatchers.IO) {
+
+            val domainWithMessage = eiP712JsonParser.parseMessage(payload) ?: throw ConfirmMessageContract.InvalidPayload
+
+            domain = domainWithMessage.domain
+            message = domainWithMessage.message
+
+            val (safeName, safeAddress) = async {
+                addressBookRepository.observeAddressBookEntry(safe)
+                    .map { it.name to it.address.shortChecksumString() }
+                    .awaitFirst()
+            }.await()
 
 
-    suspend fun getSafeData() {
-//        gnosisSafeRepository.loadSafe()
-//
-//        addressBookRepository.observeAddressBookEntry(safe.address())
-//            .map { it.name to it.address.shortChecksumString() }
-    }
+            val safeInfo = async {
+                gnosisSafeRepository.loadInfo(safe).awaitFirst()
+            }.await()
 
-    fun parse() {
-        val payloadHash = nullOnThrow { eiP712JsonParser.parseMessage(viewArguments.payload) }
-            ?.let {
+            val safeBalance = ERC20Token.ETHER_TOKEN.displayString(safeInfo.balance.value)
 
-                viewArguments = viewArguments.copy(domain = it.domain, message = it.message)
-                state.value = SignatureRequestContract.ViewUpdate(viewArguments.payload, it.domain, it.message, false, null, false)
+            val dappName = domain?.parameters?.find { it.name == "name" }?.getValue() as String
+            val dappAddress = domain?.parameters?.find { it.name == "verifyingContract" }?.getValue() as Solidity.Address
 
-                typedDataHash(message = it.message, domain = it.domain)
+            _viewData = ViewData(
+                safeAddress = safe,
+                safeName = safeName,
+                safeBalance = safeBalance,
+                domainPayload = domain.toJson("root"),
+                messagePayload = message.toJson("root"),
+                dappAddress = dappAddress,
+                dappName = dappName
+            )
+
+            async(Dispatchers.Main) {
+                state.value = ViewUpdate(
+                    _viewData,
+                    false,
+                    null,
+                    false
+                )
             }
-            ?: throw ConfirmMessageContract.InvalidPayload
+        }
     }
 
     override fun confirmPayload() {
 
         viewModelScope.launch(Dispatchers.IO) {
 
-
             async(Dispatchers.Main) {
-                state.value = ViewUpdate(viewArguments.payload, null, null, true, null, false)
+
+                state.value = ViewUpdate(
+                    _viewData,
+                    true,
+                    null,
+                    false
+                )
             }
 
-
-            val payloadHash = nullOnThrow { eiP712JsonParser.parseMessage(viewArguments.payload) }
-                ?.let {
-
-                    viewArguments = viewArguments.copy(domain = it.domain, message = it.message)
-
-                    async(Dispatchers.Main) {
-                        state.value = ViewUpdate(viewArguments.payload, it.domain, it.message, true, null, false)
-                    }
-
-
-                    typedDataHash(message = it.message, domain = it.domain)
-                }
-                ?: throw ConfirmMessageContract.InvalidPayload
+            val payloadHash = typedDataHash(message = message, domain = domain)
 
             val safeMessageStruct = Struct712(
                 typeName = "SafeMessage",
@@ -103,7 +124,7 @@ class SignatureRequestViewModel @Inject constructor(
                 parameters = listOf(
                     Struct712Parameter(
                         name = "verifyingContract",
-                        type = Literal712("address", viewArguments.safe)
+                        type = Literal712("address", safe)
                     )
                 )
             )
@@ -111,32 +132,54 @@ class SignatureRequestViewModel @Inject constructor(
             val safeMessageHash = typedDataHash(message = safeMessageStruct, domain = safeDomain)
 
             val requester = try {
-                cryptoHelper.recover(safeMessageHash, viewArguments.signature)
+                cryptoHelper.recover(safeMessageHash, extensionSignature)
             } catch (e: Exception) {
                 throw ConfirmMessageContract.ErrorRecoveringSender
             }
 
-            val signatureBytes = async {  gnosisSafeRepository.sign(viewArguments.safe, safeMessageHash).await() }.await().toString().hexStringToByteArray()
+            val signatureBytes =
+                async { gnosisSafeRepository.sign(safe, safeMessageHash).await() }.await().toString()
+                    .hexStringToByteArray()
 
             try {
                 pushServiceRepository.sendTypedDataConfirmation(
                     hash = safeMessageHash,
-                    safe = viewArguments.safe,
+                    safe = safe,
                     signature = signatureBytes,
                     targets = setOf(requester)
                 )
                     .subscribeOn(Schedulers.io())
                     .await()
             } catch (e: Exception) {
-                async(Dispatchers.Main) {
-                    state.value = ViewUpdate(viewArguments.payload, viewArguments.domain, viewArguments.message, false, ErrorSendingPush, false)
-                }
 
+                async(Dispatchers.Main) {
+
+                    state.value = ViewUpdate(
+                        _viewData,
+                        false,
+                        ErrorSendingPush,
+                        false
+                    )
+                }
             }
 
             async(Dispatchers.Main) {
-                state.value = ViewUpdate(viewArguments.payload, viewArguments.domain, viewArguments.message, false, null, true)
+
+                state.value = ViewUpdate(
+                    _viewData,
+                    false,
+                    null,
+                    true
+                )
             }
         }
     }
+
+    @JsonClass(generateAdapter = true)
+    data class DomainMessage(
+        @Json(name = "domain") val domain: Map<String, Any>,
+        @Json(name = "message") val message: Map<String, Any>
+    )
 }
+
+
