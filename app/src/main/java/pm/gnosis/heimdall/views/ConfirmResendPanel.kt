@@ -51,7 +51,7 @@ class ConfirmResendPanel @JvmOverloads constructor(
         }
 
 
-    val action: ((View) -> Unit)? = null
+    var action: ((View) -> Unit)? = null
 
     init {
         LayoutInflater.from(context).inflate(R.layout.view_confirm_resend_panel, this, true)

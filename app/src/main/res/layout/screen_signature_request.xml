@@ -5,7 +5,7 @@
     android:id="@+id/signature_request_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:background="@color/pale_grey_two">
+    android:background="@color/pale_grey_two">
 
     <View
         android:id="@+id/signature_request_toolbar_bkg"
@@ -224,6 +224,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginTop="32dp"
         android:layout_marginEnd="16dp"
+        android:visibility="gone"
         app:actionPrimary="false"
         app:actionTitle="Resent confirmation request"
         app:cardCornerRadius="@dimen/primary_button_radius"
@@ -232,7 +233,8 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/signature_request_show_message"
         app:message="Open browser and do stuff"
-        app:title="Authentication required"></pm.gnosis.heimdall.views.ConfirmResendPanel>
+        app:title="Authentication required"
+        tools:visibility="visible"/>
 
 
     <pm.gnosis.heimdall.views.TwoStepPanel
@@ -240,10 +242,12 @@
         android:layout_width="match_parent"
         android:layout_height="46dp"
         android:background="@drawable/two_step_panel"
+        android:visibility="gone"
         app:backVisible="false"
         app:forwardLabel="@string/sign"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:step="none" />
+        app:step="none"
+        tools:visibility="visible" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
