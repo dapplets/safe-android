@@ -12,7 +12,9 @@ abstract class SignatureRequestContract : ViewModel() {
     abstract val viewData: ViewData
 
     abstract fun confirmPayload()
-    abstract fun setup(payload: String, safe: Solidity.Address, signature: Signature)
+    abstract fun resend()
+    abstract fun sign()
+    abstract fun setup(payload: String, safe: Solidity.Address, signature: Signature?)
 
     data class ViewData(
         val safeAddress: Solidity.Address,
@@ -21,7 +23,8 @@ abstract class SignatureRequestContract : ViewModel() {
         val dappName: String,
         val dappAddress: Solidity.Address,
         val domainPayload: String,
-        val messagePayload: String
+        val messagePayload: String,
+        val status: Status = Status.READY_TO_SIGN
     )
 
     data class ViewUpdate(
@@ -30,6 +33,13 @@ abstract class SignatureRequestContract : ViewModel() {
         val error: Throwable? = null,
         val finishProcess: Boolean = false
     )
+
+    enum class Status {
+        AUTHORIZATION_REQUIRED,
+        AUTHORIZATION_REJECTED,
+        AUTHORIZATION_APPROVED,
+        READY_TO_SIGN
+    }
 
     object InvalidPayload : Exception()
     object ErrorRecoveringSender : Exception()

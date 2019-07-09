@@ -235,10 +235,10 @@ class DefaultPushServiceRepository @Inject constructor(
         Single.fromCallable {
             ServiceMessage.TypedDataRequest(
                 payload = payload,
-                safe = safe,
-                r = appSignature.r,
-                s = appSignature.s,
-                v = appSignature.v.toInt()
+                safe = safe.asEthereumAddressString(),
+                r = appSignature.r.toString(16).padStart(64, '0').substring(0, 64),
+                s = appSignature.s.toString(16).padStart(64, '0').substring(0, 64) ,
+                v = appSignature.v.toString(16).padStart(2, '0')
             )
         }
             .subscribeOn(Schedulers.io())
@@ -250,6 +250,8 @@ class DefaultPushServiceRepository @Inject constructor(
         }
             .subscribeOn(Schedulers.io())
             .flatMap { rawJson ->
+
+                Timber.d(rawJson)
                 accountsRepository.sign(safe, Sha3Utils.keccak("$SIGNATURE_PREFIX$rawJson".toByteArray()))
                     .map { ServiceSignature.fromSignature(it) to rawJson }
             }
@@ -321,7 +323,6 @@ class DefaultPushServiceRepository @Inject constructor(
             context.getString(R.string.sign_message_notification_description),
 
             SignatureRequestActivity.createIntent(
-            //ConfirmMessageActivity.createIntent(
                 context = context,
                 payload = signTypedData.payload,
                 safe = signTypedData.safe,

@@ -57,10 +57,10 @@ sealed class ServiceMessage {
     @JsonClass(generateAdapter = true)
     data class TypedDataRequest(
         @Json(name = "payload") val payload: String,
-        @Json(name = "safe") val safe: Solidity.Address,
-        @DecimalNumber @Json(name = "r") val r: BigInteger,
-        @DecimalNumber @Json(name = "s") val s: BigInteger,
-        @Json(name = "v") val v: Int,
+        @Json(name = "safe") val safe: String,
+        @Json(name = "r") val r: String,
+        @Json(name = "s") val s: String,
+        @Json(name = "v") val v: String,
         @Json(name = "type") val type: String = "signTypedData" // Workaround since moshi is not parsing parent or non-constructor fields
     ) : ServiceMessage()
 }
