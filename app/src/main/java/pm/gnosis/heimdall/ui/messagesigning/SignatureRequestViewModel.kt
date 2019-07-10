@@ -1,15 +1,13 @@
 package pm.gnosis.heimdall.ui.messagesigning
 
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.liveData
 import androidx.lifecycle.viewModelScope
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.awaitFirst
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirst
 import pm.gnosis.eip712.*
@@ -55,11 +53,11 @@ class SignatureRequestViewModel @Inject constructor(
 
     init {
 
-        pushServiceRepository.observeTypedDataConfirmationPushes().subscribe( {
+        pushServiceRepository.observeTypedDataConfirmationPushes().subscribe({
 
             Timber.d(it.toString())
 
-        }, {Timber.e(it)})
+        }, { Timber.e(it) })
     }
 
     override fun setup(payload: String, safe: Solidity.Address, extensionSignature: Signature?) {
@@ -148,8 +146,7 @@ class SignatureRequestViewModel @Inject constructor(
 
                     Timber.e(e)
 
-                    async(Dispatchers.Main) {
-
+                    liveData<ViewUpdate> {
                         state.value = ViewUpdate(
                             _viewData,
                             false,
@@ -157,6 +154,7 @@ class SignatureRequestViewModel @Inject constructor(
                             false
                         )
                     }
+
                 }
 
 
@@ -168,8 +166,6 @@ class SignatureRequestViewModel @Inject constructor(
                         false
                     )
                 }
-
-
 
 
             } else {
@@ -217,8 +213,7 @@ class SignatureRequestViewModel @Inject constructor(
 
                 Timber.e(e)
 
-                async(Dispatchers.Main) {
-
+                liveData<ViewUpdate> {
                     state.value = ViewUpdate(
                         _viewData,
                         false,
@@ -229,7 +224,7 @@ class SignatureRequestViewModel @Inject constructor(
             }
 
 
-            async(Dispatchers.Main) {
+            liveData<ViewUpdate> {
                 state.value = ViewUpdate(
                     _viewData,
                     false,
@@ -328,12 +323,6 @@ class SignatureRequestViewModel @Inject constructor(
             }
         }
     }
-
-//    @JsonClass(generateAdapter = true)
-//    data class DomainMessage(
-//        @Json(name = "domain") val domain: Map<String, Any>,
-//        @Json(name = "message") val message: Map<String, Any>
-//    )
 }
 
 

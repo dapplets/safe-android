@@ -236,9 +236,9 @@ class DefaultPushServiceRepository @Inject constructor(
             ServiceMessage.TypedDataRequest(
                 payload = payload,
                 safe = safe.asEthereumAddressString(),
-                r = appSignature.r.toString(16).padStart(64, '0').substring(0, 64),
-                s = appSignature.s.toString(16).padStart(64, '0').substring(0, 64) ,
-                v = appSignature.v.toString(16).padStart(2, '0')
+                r = appSignature.r.asDecimalString(),
+                s = appSignature.s.asDecimalString() ,
+                v = appSignature.v.toString()
             )
         }
             .subscribeOn(Schedulers.io())
