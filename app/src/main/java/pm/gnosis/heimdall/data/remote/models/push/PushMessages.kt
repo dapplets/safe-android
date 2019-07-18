@@ -127,6 +127,24 @@ sealed class PushMessage(
         }
     }
 
+    data class RejectSignTypedData(
+        val hash: String,
+        val r: String,
+        val s: String,
+        val v: String
+    ) : PushMessage(TYPE) {
+        companion object {
+            const val TYPE = "rejectTypedData"
+            fun fromMap(params: Map<String, String>) =
+                RejectTransaction(
+                    params.getOrThrow("hash"),
+                    params.getOrThrow("r"),
+                    params.getOrThrow("s"),
+                    params.getOrThrow("v")
+                )
+        }
+    }
+
     companion object {
         fun fromMap(params: Map<String, String>) =
             when (params["type"]) {
@@ -136,6 +154,7 @@ sealed class PushMessage(
                 SafeCreation.TYPE -> SafeCreation.fromMap(params)
                 SignTypedData.TYPE -> SignTypedData.fromMap(params)
                 SignTypedDataConfirmation.TYPE -> SignTypedDataConfirmation.fromMap(params)
+                RejectSignTypedData.TYPE -> RejectSignTypedData.fromMap(params)
                 else -> throw IllegalArgumentException("Unknown push type")
             }
     }
