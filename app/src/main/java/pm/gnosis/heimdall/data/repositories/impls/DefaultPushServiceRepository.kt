@@ -55,8 +55,7 @@ class DefaultPushServiceRepository @Inject constructor(
 
     private val observedTransaction = HashMap<BigInteger, ReceiveSignatureObservable>()
 
-    private val signTypedDataConfirmationsSubject = PublishSubject.create<PushMessage.SignTypedDataConfirmation>()
-    private val signTypedDataRejectionsSubject = PublishSubject.create<PushMessage.RejectSignTypedData>()
+    private val signTypedDataSubject = PublishSubject.create<PushMessage>()
 
     /*
     * Situations where a sync might be needed:
@@ -301,13 +300,12 @@ class DefaultPushServiceRepository @Inject constructor(
                 }
             }
             is PushMessage.SignTypedData -> showSignTypedDataNotification(pushMessage)
-            is PushMessage.SignTypedDataConfirmation -> signTypedDataConfirmationsSubject.onNext(pushMessage)
-            is PushMessage.RejectSignTypedData -> signTypedDataRejectionsSubject.onNext(pushMessage)
+            is PushMessage.SignTypedDataConfirmation -> signTypedDataSubject.onNext(pushMessage)
+            is PushMessage.RejectSignTypedData -> signTypedDataSubject.onNext(pushMessage)
         }
     }
 
-
-    override fun observeTypedDataConfirmationPushes(): Observable<PushMessage.SignTypedDataConfirmation> = signTypedDataConfirmationsSubject
+    override fun observeTypedDataPushes(): Observable<PushMessage> = signTypedDataSubject
 
     private fun showSafeCreatedNotification(safe: Solidity.Address) {
         localNotificationManager.show(

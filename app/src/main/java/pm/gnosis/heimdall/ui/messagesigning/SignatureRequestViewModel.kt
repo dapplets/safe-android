@@ -11,11 +11,15 @@ import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.consume
 import kotlinx.coroutines.channels.takeWhile
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.awaitFirst
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirst
+import kotlinx.coroutines.rx2.openSubscription
 import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
 import pm.gnosis.eip712.*
 import pm.gnosis.heimdall.data.remote.models.push.PushMessage
@@ -45,8 +49,7 @@ class SignatureRequestViewModel @Inject constructor(
     private val gnosisAccountRepository: AccountsRepository,
     private val pushServiceRepository: PushServiceRepository,
     private val addressBookRepository: AddressBookRepository
-    //private val messageSignatureStore: SignatureStore
-    ) : SignatureRequestContract() {
+) : SignatureRequestContract() {
 
     override val viewData: ViewData
         get() = _viewData
@@ -68,67 +71,40 @@ class SignatureRequestViewModel @Inject constructor(
 
     override val state: MutableLiveData<ViewUpdate> = MutableLiveData()
 
-
     private val signatures: MutableMap<Solidity.Address, Signature> = HashMap<Solidity.Address, Signature>()
 
+    val pushChannel: ReceiveChannel<PushMessage>
 
-    val confirmationChannel = Channel<PushMessage.SignTypedDataConfirmation>()
-    val rejectionChannel = Channel<PushMessage.RejectSignTypedData>()
+    suspend fun handlePushMessages() = coroutineScope {
 
+        val message = pushChannel.receive()
+        when (message) {
+            is PushMessage.SignTypedDataConfirmation -> {
+                val signature = Signature.from(message.signature.toHexString())
+                val payloadHash = message.hash
 
-
-    private fun onTypedDataConfirmation() {
-
-        viewModelScope.launch {
-
+                val address = cryptoHelper.recover(payloadHash, signature)
+                if (safeOwners.contains(address)) {
+                    Timber.d("adding signature from ${address.asEthereumAddressChecksumString()}")
+                    signatures.put(address, signature)
+                }
+            }
+            is PushMessage.RejectSignTypedData -> {
+                //TODO: handle rejection
+            }
+            else -> {
+                // handling only sign typed data pushes
+            }
         }
-
     }
 
     init {
-
-        pushServiceRepository.observeTypedDataConfirmationPushes()
-            .observeOn(Schedulers.io())
-            .map {
-                val signature = Signature.from(it.signature.toHexString())
-                val payloadHash = it.hash
-                signature to payloadHash
-
-            }
-            .map { (signature, payloadHash) ->
-                val address = cryptoHelper.recover(payloadHash, signature)
-
-                Timber.d("adding signature from ${address.asEthereumAddressChecksumString()}")
-                signatures.put(address, signature)
-                signature
-            }
-
-            .subscribe({
-
-            Timber.d(it.toString())
-
-        }, { Timber.e(it) })
+        pushChannel = pushServiceRepository.observeTypedDataPushes().openSubscription()
+        viewModelScope.launch {
+            handlePushMessages()
+        }
     }
 
-
-    private val storeSignatureTransformer = ObservableTransformer<Signature, Unit> { signedMessageEvents ->
-        signedMessageEvents
-            .flatMapSingle { signature ->
-                Timber.d(signature.toString())
-                Single.just(
-
-                    cryptoHelper.recover(payloadHash, signature)
-                )
-                    .filter { recoveredAddress -> safeOwners.contains(recoveredAddress) }
-                    .map {
-
-
-                        //signatures.put(Pair(it, signature))
-
-                    }
-                    .toSingle()
-            }
-    }
 
     override fun setup(payload: String, safe: Solidity.Address, extensionSignature: Signature?) {
 
@@ -136,6 +112,7 @@ class SignatureRequestViewModel @Inject constructor(
         this.payload = payload
 
         viewModelScope.launch(Dispatchers.IO) {
+
 
             val domainWithMessage = eiP712JsonParser.parseMessage(payload) ?: throw ConfirmMessageContract.InvalidPayload
 
@@ -275,8 +252,6 @@ class SignatureRequestViewModel @Inject constructor(
         viewModelScope.launch {
 
 
-            //val signatures = async { messageSignatureStore.load().await()}.await()
-
             val finalSignature = signatures.map {
                 it.value.toString().hexStringToByteArray()
             }
@@ -286,43 +261,7 @@ class SignatureRequestViewModel @Inject constructor(
                 }
 
             Timber.d("final signature: ${finalSignature.toHexString()}")
-
-//            Timber.d(payload)
-//
-//            Timber.d(safeOwners.toString())
-//
-//            try {
-//                pushServiceRepository.requestTypedDataConfirmations(
-//                    payload,
-//                    deviceSignature,
-//                    safe,
-//                    safeOwners
-//                )
-//                    .subscribeOn(Schedulers.io())
-//                    .await()
-//            } catch (e: Exception) {
-//
-//                Timber.e(e)
-//
-//                liveData<ViewUpdate> {
-//                    state.value = ViewUpdate(
-//                        _viewData,
-//                        false,
-//                        ErrorSendingPush,
-//                        false
-//                    )
-//                }
-//            }
-//
-//
-//            liveData<ViewUpdate> {
-//                state.value = ViewUpdate(
-//                    _viewData,
-//                    false,
-//                    null,
-//                    false
-//                )
-//            }
+            
         }
     }
 
@@ -417,8 +356,7 @@ class SignatureRequestViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        confirmationChannel.close()
-        rejectionChannel.close()
+        pushChannel.cancel()
     }
 }
 

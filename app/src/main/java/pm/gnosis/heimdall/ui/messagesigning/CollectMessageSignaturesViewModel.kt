@@ -85,8 +85,8 @@ class CollectMessageSignaturesViewModel @Inject constructor(
                         events.ofType(UIEvent.RequestSignaturesClick::class.java).compose(requestSignaturesClickTransformer),
                         events.ofType(UIEvent.ViewLoaded::class.java).compose(viewLoadedTransformer),
                         storeObservable.compose(finalSignatureTransformer),
-                        storeObservable.compose(countOwnerSignaturesTransformer),
-                        pushServiceRepository.observeTypedDataConfirmationPushes().compose(incomingSignedMessagesTransformer)
+                        storeObservable.compose(countOwnerSignaturesTransformer)
+                        //pushServiceRepository.observeTypedDataConfirmationPushes().compose(incomingSignedMessagesTransformer)
                     )
                 )
             }
