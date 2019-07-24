@@ -3,19 +3,9 @@ package pm.gnosis.heimdall.ui.messagesigning
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.liveData
 import androidx.lifecycle.viewModelScope
-import io.reactivex.Observable
-import io.reactivex.ObservableOnSubscribe
-import io.reactivex.ObservableTransformer
-import io.reactivex.Single
 import io.reactivex.schedulers.Schedulers
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.consume
-import kotlinx.coroutines.channels.takeWhile
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.reactive.awaitFirst
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirst
@@ -29,14 +19,12 @@ import pm.gnosis.heimdall.data.repositories.GnosisSafeRepository
 import pm.gnosis.heimdall.data.repositories.PushServiceRepository
 import pm.gnosis.heimdall.data.repositories.models.ERC20Token
 import pm.gnosis.heimdall.helpers.CryptoHelper
-import pm.gnosis.heimdall.helpers.SignatureStore
 import pm.gnosis.heimdall.utils.getValue
 import pm.gnosis.heimdall.utils.shortChecksumString
 import pm.gnosis.heimdall.utils.toJson
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.accounts.base.models.Signature
 import pm.gnosis.utils.hexStringToByteArray
-import pm.gnosis.utils.toHex
 import pm.gnosis.utils.toHexString
 import timber.log.Timber
 import java.math.BigInteger
@@ -75,6 +63,12 @@ class SignatureRequestViewModel @Inject constructor(
 
     val pushChannel: ReceiveChannel<PushMessage>
 
+    private val errorHandler = CoroutineExceptionHandler { _, e ->
+        viewModelScope.launch {
+
+        }
+    }
+
     suspend fun handlePushMessages() = coroutineScope {
 
         val message = pushChannel.receive()
@@ -108,11 +102,10 @@ class SignatureRequestViewModel @Inject constructor(
 
     override fun setup(payload: String, safe: Solidity.Address, extensionSignature: Signature?) {
 
-        this.safe = safe
-        this.payload = payload
-
         viewModelScope.launch(Dispatchers.IO) {
 
+            this@SignatureRequestViewModel.safe = safe
+            this@SignatureRequestViewModel.payload = payload
 
             val domainWithMessage = eiP712JsonParser.parseMessage(payload) ?: throw ConfirmMessageContract.InvalidPayload
 
@@ -261,7 +254,7 @@ class SignatureRequestViewModel @Inject constructor(
                 }
 
             Timber.d("final signature: ${finalSignature.toHexString()}")
-            
+
         }
     }
 
