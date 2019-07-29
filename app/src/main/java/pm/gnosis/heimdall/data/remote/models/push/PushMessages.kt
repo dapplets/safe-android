@@ -135,9 +135,9 @@ sealed class PushMessage(
         val v: String
     ) : PushMessage(TYPE) {
         companion object {
-            const val TYPE = "rejectTypedData"
+            const val TYPE = "rejectSignTypedData"
             fun fromMap(params: Map<String, String>) =
-                RejectTransaction(
+                RejectSignTypedData(
                     params.getOrThrow("hash"),
                     params.getOrThrow("r"),
                     params.getOrThrow("s"),
