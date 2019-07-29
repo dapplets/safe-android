@@ -51,9 +51,6 @@ class SignatureRequestViewModel @Inject constructor(
     private lateinit var payload: String
 
 
-    private lateinit var payloadHash: ByteArray
-
-
     private lateinit var deviceSignature: Signature
     private lateinit var safeMessageHash: ByteArray
 
@@ -82,9 +79,36 @@ class SignatureRequestViewModel @Inject constructor(
                     Timber.d("adding signature from ${address.asEthereumAddressChecksumString()}")
                     signatures.put(address, signature)
                 }
+
+                _viewData = _viewData.copy(
+                    status = Status.AUTHORIZATION_APPROVED
+                )
+
+                state.postValue(
+                    ViewUpdate(
+                        _viewData,
+                        false,
+                        null,
+                        false
+                    )
+                )
+
             }
             is PushMessage.RejectSignTypedData -> {
-                //TODO: handle rejection
+
+                _viewData = _viewData.copy(
+                    status = Status.AUTHORIZATION_REJECTED
+                )
+
+                state.postValue(
+                    ViewUpdate(
+                        _viewData,
+                        false,
+                        null,
+                        false
+                    )
+                )
+
             }
             else -> {
                 // handling only sign typed data pushes
@@ -128,7 +152,7 @@ class SignatureRequestViewModel @Inject constructor(
             val dappAddress = domain?.parameters?.find { it.name == "verifyingContract" }?.getValue() as Solidity.Address
 
 
-            payloadHash = typedDataHash(message = message, domain = domain)
+            val payloadHash = typedDataHash(message = message, domain = domain)
 
             if (extensionSignature == null) {
 
@@ -137,7 +161,7 @@ class SignatureRequestViewModel @Inject constructor(
                     parameters = listOf(
                         Struct712Parameter(
                             name = "message",
-                            type = Literal712(typeName = "bytes", value = Solidity.Bytes(message.hashStruct()))
+                            type = Literal712(typeName = "bytes", value = Solidity.Bytes(payloadHash))
                         )
                     )
                 )
@@ -192,32 +216,31 @@ class SignatureRequestViewModel @Inject constructor(
 
                     Timber.e(e)
 
-                    liveData<ViewUpdate> {
-                        state.value = ViewUpdate(
+                    state.postValue(
+                        ViewUpdate(
                             _viewData,
                             false,
                             ErrorSendingPush,
                             false
                         )
-                    }
+                    )
 
                 }
 
-
-                async(Dispatchers.Main) {
-                    state.value = ViewUpdate(
+                state.postValue(
+                    ViewUpdate(
                         _viewData,
                         false,
                         null,
                         false
                     )
-                }
+                )
 
 
             } else {
 
 
-                this@SignatureRequestViewModel.extensionSignature = extensionSignature!!
+                this@SignatureRequestViewModel.extensionSignature = extensionSignature
 
                 _viewData = ViewData(
                     safeAddress = safe,
@@ -229,20 +252,50 @@ class SignatureRequestViewModel @Inject constructor(
                     dappName = dappName
                 )
 
-                async(Dispatchers.Main) {
-                    state.value = ViewUpdate(
+                state.postValue(
+                    ViewUpdate(
                         _viewData,
                         false,
                         null,
                         false
                     )
-                }
+                )
+
             }
         }
     }
 
     override fun resend() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                pushServiceRepository.requestTypedDataConfirmations(
+                    payload,
+                    deviceSignature,
+                    safe,
+                    safeOwners
+                )
+                    .subscribeOn(Schedulers.io())
+                    .await()
+            } catch (e: Exception) {
+
+                Timber.e(e)
+
+                liveData<ViewUpdate> {
+                    state.value = ViewUpdate(
+                        _viewData,
+                        false,
+                        ErrorSendingPush,
+                        false
+                    )
+                }
+
+            }
+        }
+    }
+
+    override fun sign() {
+
+        viewModelScope.launch(Dispatchers.IO) {
 
 
             val finalSignature = signatures.map {
@@ -254,13 +307,7 @@ class SignatureRequestViewModel @Inject constructor(
                 }
 
             Timber.d("final signature: ${finalSignature.toHexString()}")
-
-        }
-    }
-
-    override fun sign() {
-
-        viewModelScope.launch(Dispatchers.IO) {
+            Timber.d("safe message hash: ${safeMessageHash.toHexString()}")
 
         }
     }
@@ -279,29 +326,6 @@ class SignatureRequestViewModel @Inject constructor(
                 )
             }
 
-            //val payloadHash = typedDataHash(message = message, domain = domain)
-
-            val safeMessageStruct = Struct712(
-                typeName = "SafeMessage",
-                parameters = listOf(
-                    Struct712Parameter(
-                        name = "message",
-                        type = Literal712(typeName = "bytes", value = Solidity.Bytes(payloadHash))
-                    )
-                )
-            )
-
-            val safeDomain = Struct712(
-                typeName = "EIP712Domain",
-                parameters = listOf(
-                    Struct712Parameter(
-                        name = "verifyingContract",
-                        type = Literal712("address", safe)
-                    )
-                )
-            )
-
-            val safeMessageHash = typedDataHash(message = safeMessageStruct, domain = safeDomain)
 
             val requester = try {
                 cryptoHelper.recover(safeMessageHash, extensionSignature)
