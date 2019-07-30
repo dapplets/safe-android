@@ -3,6 +3,7 @@ package pm.gnosis.heimdall.ui.messagesigning
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.liveData
 import androidx.lifecycle.viewModelScope
+import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -10,6 +11,7 @@ import kotlinx.coroutines.reactive.awaitFirst
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirst
 import kotlinx.coroutines.rx2.openSubscription
+import pm.gnosis.crypto.utils.Sha3Utils
 import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
 import pm.gnosis.eip712.*
 import pm.gnosis.heimdall.data.remote.models.push.PushMessage
@@ -17,6 +19,7 @@ import pm.gnosis.heimdall.data.repositories.AccountsRepository
 import pm.gnosis.heimdall.data.repositories.AddressBookRepository
 import pm.gnosis.heimdall.data.repositories.GnosisSafeRepository
 import pm.gnosis.heimdall.data.repositories.PushServiceRepository
+import pm.gnosis.heimdall.data.repositories.impls.RpcProxyApi
 import pm.gnosis.heimdall.data.repositories.models.ERC20Token
 import pm.gnosis.heimdall.helpers.CryptoHelper
 import pm.gnosis.heimdall.utils.getValue
@@ -24,7 +27,9 @@ import pm.gnosis.heimdall.utils.shortChecksumString
 import pm.gnosis.heimdall.utils.toJson
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.accounts.base.models.Signature
+import pm.gnosis.svalinn.security.EncryptionManager
 import pm.gnosis.utils.hexStringToByteArray
+import pm.gnosis.utils.toBinaryString
 import pm.gnosis.utils.toHexString
 import timber.log.Timber
 import java.math.BigInteger
@@ -34,10 +39,12 @@ class SignatureRequestViewModel @Inject constructor(
     private val cryptoHelper: CryptoHelper,
     private val eiP712JsonParser: EIP712JsonParser,
     private val gnosisSafeRepository: GnosisSafeRepository,
+    private val encryptionManager: EncryptionManager,
     private val gnosisAccountRepository: AccountsRepository,
     private val pushServiceRepository: PushServiceRepository,
-    private val addressBookRepository: AddressBookRepository
-) : SignatureRequestContract() {
+    private val addressBookRepository: AddressBookRepository,
+    private val rpcProxyApi: RpcProxyApi
+    ) : SignatureRequestContract() {
 
     override val viewData: ViewData
         get() = _viewData
@@ -131,7 +138,7 @@ class SignatureRequestViewModel @Inject constructor(
             this@SignatureRequestViewModel.safe = safe
             this@SignatureRequestViewModel.payload = payload
 
-            val domainWithMessage = eiP712JsonParser.parseMessage(payload) ?: throw ConfirmMessageContract.InvalidPayload
+            val domainWithMessage = eiP712JsonParser.parseMessage(payload) ?: throw InvalidPayload
 
             domain = domainWithMessage.domain
             message = domainWithMessage.message
@@ -146,6 +153,9 @@ class SignatureRequestViewModel @Inject constructor(
                 gnosisSafeRepository.loadInfo(safe).awaitFirst()
             }.await()
 
+            val deviceOwner = async { gnosisAccountRepository.signingOwner(safe).await() }.await()
+            safeOwners = safeInfo.owners.toSet().minus(deviceOwner.address)
+
             val safeBalance = ERC20Token.ETHER_TOKEN.displayString(safeInfo.balance.value)
 
             val dappName = domain?.parameters?.find { it.name == "name" }?.getValue() as String
@@ -154,36 +164,41 @@ class SignatureRequestViewModel @Inject constructor(
 
             val payloadHash = typedDataHash(message = message, domain = domain)
 
+            val safeMessageStruct = Struct712(
+                typeName = "SafeMessage",
+                parameters = listOf(
+                    Struct712Parameter(
+                        name = "message",
+                        type = Literal712(typeName = "bytes", value = Solidity.Bytes(payloadHash))
+                    )
+                )
+            )
+
+            val safeDomain = Struct712(
+                typeName = "EIP712Domain",
+                parameters = listOf(
+                    Struct712Parameter(
+                        name = "verifyingContract",
+                        type = Literal712("address", safe)
+                    )
+                )
+            )
+
+
+            safeMessageHash = typedDataHash(message = safeMessageStruct, domain = safeDomain)
+
+            deviceSignature = cryptoHelper.sign(deviceOwner.privateKey.value(encryptionManager), safeMessageHash)
+               // async { gnosisSafeRepository.sign(safe, safeMessageHash).await() }.await()
+            signatures.put(deviceOwner.address, deviceSignature)
+
+
+
+            Timber.d("safe owners ${safeInfo.owners.map { it.asEthereumAddressChecksumString() }}")
+
+
+            Timber.d("device owner" + deviceOwner.address.asEthereumAddressChecksumString())
+
             if (extensionSignature == null) {
-
-                val safeMessageStruct = Struct712(
-                    typeName = "SafeMessage",
-                    parameters = listOf(
-                        Struct712Parameter(
-                            name = "message",
-                            type = Literal712(typeName = "bytes", value = Solidity.Bytes(payloadHash))
-                        )
-                    )
-                )
-
-                val safeDomain = Struct712(
-                    typeName = "EIP712Domain",
-                    parameters = listOf(
-                        Struct712Parameter(
-                            name = "verifyingContract",
-                            type = Literal712("address", safe)
-                        )
-                    )
-                )
-
-                safeMessageHash = typedDataHash(message = safeMessageStruct, domain = safeDomain)
-
-                deviceSignature =
-                    async { gnosisSafeRepository.sign(safe, safeMessageHash).await() }.await()
-                signatures.put(safe, deviceSignature)
-
-                val deviceOwner = async { gnosisAccountRepository.signingOwner(safe).await() }.await()
-
 
                 _viewData = ViewData(
                     safeAddress = safe,
@@ -195,13 +210,6 @@ class SignatureRequestViewModel @Inject constructor(
                     dappName = dappName,
                     status = Status.AUTHORIZATION_REQUIRED
                 )
-
-                Timber.d("safe owners ${safeInfo.owners.map { it.asEthereumAddressChecksumString() }}")
-
-
-                safeOwners = safeInfo.owners.toSet().minus(deviceOwner.address)
-
-                Timber.d("device owner" + deviceOwner.address.asEthereumAddressChecksumString())
 
                 try {
                     pushServiceRepository.requestTypedDataConfirmations(
@@ -236,7 +244,6 @@ class SignatureRequestViewModel @Inject constructor(
                     )
                 )
 
-
             } else {
 
 
@@ -267,6 +274,17 @@ class SignatureRequestViewModel @Inject constructor(
 
     override fun resend() {
         viewModelScope.launch(Dispatchers.IO) {
+
+
+            val method = Sha3Utils.keccak("isValidSignature(bytes,bytes)".toByteArray()).toHexString()
+            Timber.d(method)
+
+
+            Timber.d(safeMessageHash.toBinaryString())
+
+            //safeMessageHash.toHexString().length / 2
+
+
             try {
                 pushServiceRepository.requestTypedDataConfirmations(
                     payload,
@@ -309,6 +327,19 @@ class SignatureRequestViewModel @Inject constructor(
             Timber.d("final signature: ${finalSignature.toHexString()}")
             Timber.d("safe message hash: ${safeMessageHash.toHexString()}")
 
+            val response = mapOf("hash" to safeMessageHash.toHexString(), "signature" to finalSignature.toHexString())
+
+            try {
+                rpcProxyApi.proxy(RpcProxyApi.ProxiedRequest("eth_call", response.toList(), 1))
+                    .subscribeBy(onError = { t ->
+
+                    }) { result ->
+                        Timber.d(result.error?.message)
+                    }
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+
         }
     }
 
@@ -326,22 +357,17 @@ class SignatureRequestViewModel @Inject constructor(
                 )
             }
 
-
             val requester = try {
                 cryptoHelper.recover(safeMessageHash, extensionSignature)
             } catch (e: Exception) {
-                throw ConfirmMessageContract.ErrorRecoveringSender
+                throw ErrorRecoveringSender
             }
-
-            val signatureBytes =
-                async { gnosisSafeRepository.sign(safe, safeMessageHash).await() }.await().toString()
-                    .hexStringToByteArray()
 
             try {
                 pushServiceRepository.sendTypedDataConfirmation(
                     hash = safeMessageHash,
                     safe = safe,
-                    signature = signatureBytes,
+                    signature = deviceSignature.toString().hexStringToByteArray(),
                     targets = setOf(requester)
                 )
                     .subscribeOn(Schedulers.io())
