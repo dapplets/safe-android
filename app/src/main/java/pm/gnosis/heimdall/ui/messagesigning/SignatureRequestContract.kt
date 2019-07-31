@@ -25,7 +25,7 @@ abstract class SignatureRequestContract : ViewModel() {
         val dappAddress: Solidity.Address,
         val domainPayload: String,
         val messagePayload: String,
-        val status: Status = Status.READY_TO_SIGN
+        val status: Status
     )
 
     data class ViewUpdate(

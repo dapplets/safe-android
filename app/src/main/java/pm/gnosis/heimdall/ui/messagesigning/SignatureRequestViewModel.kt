@@ -226,6 +226,16 @@ class SignatureRequestViewModel @Inject constructor(
                     )
                         .subscribeOn(Schedulers.io())
                         .await()
+
+                    state.postValue(
+                        ViewUpdate(
+                            _viewData,
+                            false,
+                            null,
+                            false
+                        )
+                    )
+
                 } catch (e: Exception) {
 
                     Timber.e(e)
@@ -240,15 +250,6 @@ class SignatureRequestViewModel @Inject constructor(
                     )
 
                 }
-
-                state.postValue(
-                    ViewUpdate(
-                        _viewData,
-                        false,
-                        null,
-                        false
-                    )
-                )
 
             } else {
 
@@ -342,6 +343,14 @@ class SignatureRequestViewModel @Inject constructor(
                 Timber.e(e)
             }
 
+            state.postValue(
+                ViewUpdate(
+                    _viewData,
+                    false,
+                    null,
+                    true
+                )
+            )
         }
     }
 
@@ -349,15 +358,14 @@ class SignatureRequestViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
 
-            async(Dispatchers.Main) {
-
-                state.value = ViewUpdate(
+            state.postValue(
+                ViewUpdate(
                     _viewData,
                     true,
                     null,
                     false
                 )
-            }
+            )
 
             val requester = try {
                 cryptoHelper.recover(safeMessageHash, extensionSignature)
@@ -374,26 +382,25 @@ class SignatureRequestViewModel @Inject constructor(
                 )
                     .subscribeOn(Schedulers.io())
                     .await()
+
+                state.postValue(
+                    ViewUpdate(
+                        _viewData,
+                        false,
+                        null,
+                        true
+                    )
+                )
+
             } catch (e: Exception) {
 
-                async(Dispatchers.Main) {
-
-                    state.value = ViewUpdate(
+                state.postValue(
+                    ViewUpdate(
                         _viewData,
                         false,
                         ErrorSendingPush,
                         false
                     )
-                }
-            }
-
-            async(Dispatchers.Main) {
-
-                state.value = ViewUpdate(
-                    _viewData,
-                    false,
-                    null,
-                    true
                 )
             }
         }
