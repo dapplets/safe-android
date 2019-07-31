@@ -14,7 +14,8 @@ abstract class SignatureRequestContract : ViewModel() {
     abstract fun confirmPayload()
     abstract fun resend()
     abstract fun sign()
-    abstract fun setup(payload: String, safe: Solidity.Address, signature: Signature?)
+    abstract fun cancel()
+    abstract fun setup(payload: String, safe: Solidity.Address, signature: Signature?, referenceId: Long?, sessionId: String?)
 
     data class ViewData(
         val safeAddress: Solidity.Address,
