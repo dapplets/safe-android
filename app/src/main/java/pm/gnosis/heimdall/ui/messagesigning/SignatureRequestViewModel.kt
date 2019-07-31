@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import io.reactivex.schedulers.Schedulers
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.reactive.awaitFirst
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirst
@@ -80,48 +81,50 @@ class SignatureRequestViewModel @Inject constructor(
 
     suspend fun handlePushMessages() = coroutineScope {
 
-        val message = pushChannel.receive()
-        when (message) {
-            is PushMessage.SignTypedDataConfirmation -> {
-                val signature = Signature.from(message.signature.toHexString())
-                val payloadHash = message.hash
+        pushChannel.consumeEach { message ->
 
-                val address = cryptoHelper.recover(payloadHash, signature)
-                if (safeOwners.contains(address)) {
-                    Timber.d("adding signature from ${address.asEthereumAddressChecksumString()}")
-                    signatures.put(address, signature)
+            when (message) {
+                is PushMessage.SignTypedDataConfirmation -> {
+                    val signature = Signature.from(message.signature.toHexString())
+                    val payloadHash = message.hash
+
+                    val address = cryptoHelper.recover(payloadHash, signature)
+                    if (safeOwners.contains(address)) {
+                        Timber.d("adding signature from ${address.asEthereumAddressChecksumString()}")
+                        signatures.put(address, signature)
+                    }
+
+                    _viewData = _viewData.copy(
+                        status = Status.AUTHORIZATION_APPROVED
+                    )
+
+                    state.postValue(
+                        ViewUpdate(
+                            _viewData,
+                            false,
+                            null,
+                            false
+                        )
+                    )
                 }
+                is PushMessage.RejectSignTypedData -> {
 
-                _viewData = _viewData.copy(
-                    status = Status.AUTHORIZATION_APPROVED
-                )
-
-                state.postValue(
-                    ViewUpdate(
-                        _viewData,
-                        false,
-                        null,
-                        false
+                    _viewData = _viewData.copy(
+                        status = Status.AUTHORIZATION_REJECTED
                     )
-                )
-            }
-            is PushMessage.RejectSignTypedData -> {
 
-                _viewData = _viewData.copy(
-                    status = Status.AUTHORIZATION_REJECTED
-                )
-
-                state.postValue(
-                    ViewUpdate(
-                        _viewData,
-                        false,
-                        null,
-                        false
+                    state.postValue(
+                        ViewUpdate(
+                            _viewData,
+                            false,
+                            null,
+                            false
+                        )
                     )
-                )
-            }
-            else -> {
-                // handling only sign typed data pushes
+                }
+                else -> {
+                    // handling only sign typed data pushes
+                }
             }
         }
     }
