@@ -54,18 +54,13 @@ class SignatureRequestViewModel @Inject constructor(
     private lateinit var safe: Solidity.Address
     private lateinit var safeOwners: Set<Solidity.Address>
     private lateinit var extensionSignature: Signature
+    private lateinit var payload: String
     private lateinit var domain: Struct712
     private lateinit var message: Struct712
-    private lateinit var d1: Struct712
-    private lateinit var m1: Struct712
-    private lateinit var payload: String
 
-
-    private lateinit var payloadSend: ByteArray
-
-
-    private lateinit var deviceSignature: Signature
+    private lateinit var payloadEip712Hash: ByteArray
     private lateinit var safeMessageHash: ByteArray
+    private lateinit var deviceSignature: Signature
 
     override val state: MutableLiveData<ViewUpdate> = MutableLiveData()
 
@@ -166,23 +161,20 @@ class SignatureRequestViewModel @Inject constructor(
 
             val safeBalance = ERC20Token.ETHER_TOKEN.displayString(safeInfo.balance.value)
 
-            val dappName = domain?.parameters?.find { it.name == "name" }?.getValue() as String
-            val dappAddress = domain?.parameters?.find { it.name == "verifyingContract" }?.getValue() as Solidity.Address
+            val dappName = domain.parameters.find { it.name == "name" }?.getValue() as String
+            val dappAddress = domain.parameters.find { it.name == "verifyingContract" }?.getValue() as Solidity.Address
 
-
-            val payloadHash = typedDataHash(message = message, domain = domain)
-            payloadSend = payloadHash
+            payloadEip712Hash = typedDataHash(message = message, domain = domain)
 
             val safeMessageStruct = Struct712(
                 typeName = "SafeMessage",
                 parameters = listOf(
                     Struct712Parameter(
                         name = "message",
-                        type = Literal712(typeName = "bytes", value = Solidity.Bytes(payloadHash))
+                        type = Literal712(typeName = "bytes", value = Solidity.Bytes(payloadEip712Hash))
                     )
                 )
             )
-            m1 = safeMessageStruct
 
             val safeDomain = Struct712(
                 typeName = "EIP712Domain",
@@ -193,7 +185,6 @@ class SignatureRequestViewModel @Inject constructor(
                     )
                 )
             )
-            d1 = safeDomain
 
             safeMessageHash = typedDataHash(message = safeMessageStruct, domain = safeDomain)
 
@@ -323,10 +314,10 @@ class SignatureRequestViewModel @Inject constructor(
             Timber.d("safe message hash: ${safeMessageHash.toHexString()}")
             Timber.d("final signature: ${finalSignature.toHexString()}")
 
-
             bridgeRepository.approveRequest(referenceId!!, finalSignature.toHexString()).await()
 
-            val data = GnosisSafe.IsValidSignature.encode(Solidity.Bytes(payloadSend), Solidity.Bytes(finalSignature))
+            //FIXME: payloadEip712Hash vs safeMessageHash?
+            val data = GnosisSafe.IsValidSignature.encode(Solidity.Bytes(payloadEip712Hash), Solidity.Bytes(finalSignature))
 
             try {
 
