@@ -43,6 +43,7 @@ interface PushServiceRepository {
     }
 
     fun requestTypedDataConfirmations(payload: String, appSignature: Signature, safe: Solidity.Address, targets: Set<Solidity.Address>): Completable
+    fun requestTypedDataRejection(hash: ByteArray, appSignature: Signature, safe: Solidity.Address, targets: Set<Solidity.Address>): Completable
 
     fun observeTypedDataPushes(): Observable<PushMessage>
 }

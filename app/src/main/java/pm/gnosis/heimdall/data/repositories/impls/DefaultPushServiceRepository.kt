@@ -225,6 +225,25 @@ class DefaultPushServiceRepository @Inject constructor(
             .subscribeOn(Schedulers.io())
             .flatMapCompletable { sendNotification(it, safe, targets) }
 
+
+    override fun requestTypedDataRejection(
+        hash: ByteArray,
+        signature: Signature,
+        safe: Solidity.Address,
+        targets: Set<Solidity.Address>
+    ): Completable =
+        Single.fromCallable {
+            ServiceMessage.TypedDataRejection(
+                hash = hash.toHexString().addHexPrefix(),
+                r = signature.r.asDecimalString(),
+                s = signature.s.asDecimalString(),
+                v = signature.v.toInt().toString()
+            )
+        }
+            .subscribeOn(Schedulers.io())
+            .flatMapCompletable { sendNotification(it, safe, targets) }
+
+
     override fun requestTypedDataConfirmations(
         payload: String,
         appSignature: Signature,
