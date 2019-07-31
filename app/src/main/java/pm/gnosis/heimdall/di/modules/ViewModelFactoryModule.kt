@@ -102,11 +102,6 @@ abstract class ViewModelFactoryModule {
 
     @Binds
     @IntoMap
-    @ViewModelKey(CollectMessageSignaturesContract::class)
-    abstract fun bindsCollectMessageSignaturesContract(viewModel: CollectMessageSignaturesViewModel): ViewModel
-
-    @Binds
-    @IntoMap
     @ViewModelKey(SignatureRequestContract::class)
     abstract fun bindsSignatureRequestContract(viewModel: SignatureRequestViewModel): ViewModel
 
