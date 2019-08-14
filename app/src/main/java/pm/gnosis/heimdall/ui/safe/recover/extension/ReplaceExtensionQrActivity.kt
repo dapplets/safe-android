@@ -47,11 +47,13 @@ class ReplaceExtensionQrActivity : ViewModelActivity<ReplaceExtensionQrContract>
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val safeAddress = (intent.extras[EXTRA_SAFE_ADDRESS] as String)?.asEthereumAddress()
+        val safeAddress = intent.extras.getString(EXTRA_SAFE_ADDRESS)?.asEthereumAddress()
         safeAddress?.let {
             viewModel.setup(it)
-        } ?: finish()
-
+        } ?: run {
+            finish()
+            return
+        }
 
         viewModel.observableState.observe(this, Observer {
 
@@ -82,7 +84,6 @@ class ReplaceExtensionQrActivity : ViewModelActivity<ReplaceExtensionQrContract>
 
     override fun onStart() {
         super.onStart()
-
 
         backArrow.setOnClickListener {
             finish()

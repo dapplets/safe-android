@@ -26,7 +26,6 @@ import pm.gnosis.heimdall.utils.underline
 import pm.gnosis.model.Solidity
 import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.asEthereumAddressString
-import timber.log.Timber
 import java.math.BigInteger
 import java.math.RoundingMode
 import java.util.concurrent.TimeUnit
@@ -49,7 +48,6 @@ class ReplaceExtensionStartActivity : ViewModelActivity<ReplaceExtensionStartCon
     override fun screenId() = ScreenId.REPLACE_BROWSER_EXTENSION_START
 
     private lateinit var safe: Solidity.Address
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,7 +77,6 @@ class ReplaceExtensionStartActivity : ViewModelActivity<ReplaceExtensionStartCon
             balanceAfterValue.text = it.balanceAfter
 
         })
-
     }
 
     override fun onStart() {
@@ -116,7 +113,6 @@ class ReplaceExtensionStartActivity : ViewModelActivity<ReplaceExtensionStartCon
     }
 }
 
-
 abstract class ReplaceExtensionStartContract : ViewModel() {
 
     abstract val observableState: LiveData<ViewUpdate>
@@ -124,7 +120,6 @@ abstract class ReplaceExtensionStartContract : ViewModel() {
     abstract fun setup(safeAddress: Solidity.Address)
 
     abstract fun estimate()
-
 
     data class ViewUpdate(
         val balanceBefore: String,
@@ -134,7 +129,6 @@ abstract class ReplaceExtensionStartContract : ViewModel() {
         val sufficient: Boolean
     )
 }
-
 
 class ReplaceExtensionStartViewModel @Inject constructor(
     private val recoverSafeOwnersHelper: RecoverSafeOwnersHelper,
@@ -161,22 +155,19 @@ class ReplaceExtensionStartViewModel @Inject constructor(
             val safeInfo = gnosisSafeRepository.loadInfo(safeAddress).awaitFirst()
             val paymentToken = tokenRepository.loadPaymentToken(safeAddress).await()
 
-
             val balance = tokenRepository.loadTokenBalances(safeAddress, listOf(paymentToken))
                 .repeatWhen { it.delay(BALANCE_REQUEST_INTERVAL_SECONDS, TimeUnit.SECONDS) }
                 .retryWhen { it.delay(BALANCE_REQUEST_INTERVAL_SECONDS, TimeUnit.SECONDS) }
                 .awaitFirst()[0]
 
-
             val owner = safeInfo.owners[0]
-            val extension = Solidity.Address(owner.value.add(BigInteger.valueOf(1)))
+            val extension = Solidity.Address(BigInteger.valueOf(Long.MAX_VALUE))
             val transaction = recoverSafeOwnersHelper.buildRecoverTransaction(
                 safeInfo,
                 safeInfo.owners.subList(2, safeInfo.owners.size).toSet(),
                 setOf(owner, extension)
             )
             val executeInfo = transactionExecutionRepository.loadExecuteInformation(safeAddress, paymentToken.address, transaction).await()
-
 
             val currentBalance = balance.second!!
             val gasFee = with(executeInfo) {
@@ -192,8 +183,6 @@ class ReplaceExtensionStartViewModel @Inject constructor(
 
                 )
             )
-
-            Timber.d(executeInfo.gasPrice.toString())
         }
     }
 

@@ -382,10 +382,7 @@ class SafeMainActivity : ViewModelActivity<SafeMainContract>() {
                         )
                     }
                     R.id.safe_details_menu_replace_browser_extension -> selectedSafe?.let { safe ->
-
                         startActivity(ReplaceExtensionStartActivity.createIntent(this, safe.address()))
-
-                        //startActivity(ReplaceExtensionPairingActivity.createIntent(this, safe.address()))
                     }
                     R.id.safe_details_menu_show_on_etherscan -> selectedSafe?.let { safe ->
                         openUrl(getString(R.string.etherscan_address_url, safe.address().asEthereumAddressString()))

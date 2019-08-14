@@ -46,8 +46,8 @@ class ConfirmationDialog : BaseDialog() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         arguments?.let {
-            congratulations_text.text = getString(it[ARG_TEXT_RES] as Int)
-            congratulations_check.setImageResource(it[ARG_IMAGE_RES] as Int)
+            congratulations_text.text = getString(it.getInt(ARG_TEXT_RES))
+            congratulations_check.setImageResource(it.getInt(ARG_IMAGE_RES))
         }
     }
 
