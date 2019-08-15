@@ -72,7 +72,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
             return
         }
 
-        referenceId = if (intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
+        referenceId = if (intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, -1) else null
         viewModel.setup(safeAddress, referenceId, intent.getStringExtra(EXTRA_SESSION_ID))
         infoViewHelper.bind(layout_review_transaction_transaction_info)
     }
@@ -170,7 +170,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
 
     override fun onConfirmationDialogDismiss() {
         // If we have a reference id then we have been opened from a external request and should just close the screen without opening a new one
-        if (referenceId ?: 0 < 0)
+        if (referenceId ?: -1 < 0) {
             startActivity(
                 SafeMainActivity.createIntent(
                     this,
@@ -178,6 +178,9 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
                     R.string.tab_title_transactions
                 )
             )
+        } else {
+            finish()
+        }
     }
 
     private fun toggleReadyState(isReady: Boolean) {

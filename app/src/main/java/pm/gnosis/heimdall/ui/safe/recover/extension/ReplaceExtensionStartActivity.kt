@@ -190,11 +190,3 @@ class ReplaceExtensionStartViewModel @Inject constructor(
         private const val BALANCE_REQUEST_INTERVAL_SECONDS = 10L
     }
 }
-
-
-
-
-
-
-
-
