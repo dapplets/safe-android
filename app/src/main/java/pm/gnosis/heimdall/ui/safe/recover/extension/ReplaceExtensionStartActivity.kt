@@ -8,13 +8,17 @@ import androidx.lifecycle.*
 import com.jakewharton.rxbinding2.view.clicks
 import io.reactivex.rxkotlin.plusAssign
 import io.reactivex.rxkotlin.subscribeBy
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirst
+import kotlinx.coroutines.rx2.openSubscription
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.repositories.GnosisSafeRepository
 import pm.gnosis.heimdall.data.repositories.TokenRepository
 import pm.gnosis.heimdall.data.repositories.TransactionExecutionRepository
+import pm.gnosis.heimdall.data.repositories.models.ERC20Token
 import pm.gnosis.heimdall.data.repositories.models.ERC20TokenWithBalance
 import pm.gnosis.heimdall.di.components.ViewComponent
 import pm.gnosis.heimdall.reporting.ScreenId
@@ -77,6 +81,10 @@ class ReplaceExtensionStartActivity : ViewModelActivity<ReplaceExtensionStartCon
             balanceAfterValue.text = it.balanceAfter
 
         })
+
+        lifecycleScope.launchWhenStarted {
+            viewModel.estimate()
+        }
     }
 
     override fun onStart() {
@@ -98,8 +106,6 @@ class ReplaceExtensionStartActivity : ViewModelActivity<ReplaceExtensionStartCon
         disposables += bottomPanel.forwardClicks.subscribeBy {
             startActivity(ReplaceExtensionQrActivity.createIntent(this, safe))
         }
-
-        viewModel.estimate()
     }
 
 
@@ -144,6 +150,8 @@ class ReplaceExtensionStartViewModel @Inject constructor(
 
     private lateinit var safeAddress: Solidity.Address
 
+    private lateinit var balanceChannel: ReceiveChannel<Pair<ERC20Token, BigInteger?>>
+
     override fun setup(safeAddress: Solidity.Address) {
         this.safeAddress = safeAddress
     }
@@ -155,11 +163,6 @@ class ReplaceExtensionStartViewModel @Inject constructor(
             val safeInfo = gnosisSafeRepository.loadInfo(safeAddress).awaitFirst()
             val paymentToken = tokenRepository.loadPaymentToken(safeAddress).await()
 
-            val balance = tokenRepository.loadTokenBalances(safeAddress, listOf(paymentToken))
-                .repeatWhen { it.delay(BALANCE_REQUEST_INTERVAL_SECONDS, TimeUnit.SECONDS) }
-                .retryWhen { it.delay(BALANCE_REQUEST_INTERVAL_SECONDS, TimeUnit.SECONDS) }
-                .awaitFirst()[0]
-
             val owner = safeInfo.owners[0]
             val extension = Solidity.Address(BigInteger.valueOf(Long.MAX_VALUE))
             val transaction = recoverSafeOwnersHelper.buildRecoverTransaction(
@@ -167,23 +170,42 @@ class ReplaceExtensionStartViewModel @Inject constructor(
                 safeInfo.owners.subList(2, safeInfo.owners.size).toSet(),
                 setOf(owner, extension)
             )
-            val executeInfo = transactionExecutionRepository.loadExecuteInformation(safeAddress, paymentToken.address, transaction).await()
 
-            val currentBalance = balance.second!!
-            val gasFee = with(executeInfo) {
-                (txGas + dataGas + operationalGas) * gasPrice
-            }
-            _state.postValue(
-                ViewUpdate(
-                    paymentToken.displayString(currentBalance),
-                    ERC20TokenWithBalance(paymentToken, gasFee).displayString(roundingMode = RoundingMode.UP),
-                    paymentToken.displayString(currentBalance - gasFee),
-                    paymentToken.symbol,
-                    currentBalance > gasFee
+            balanceChannel = tokenRepository.loadTokenBalances(safeAddress, listOf(paymentToken))
+                .repeatWhen { it.delay(BALANCE_REQUEST_INTERVAL_SECONDS, TimeUnit.SECONDS) }
+                .retryWhen { it.delay(BALANCE_REQUEST_INTERVAL_SECONDS, TimeUnit.SECONDS) }
+                .map {
+                    it[0]
+                }
+                .openSubscription()
 
+
+            balanceChannel.consumeEach {
+
+                val balance = it.second ?: BigInteger.ZERO
+
+                val executeInfo = transactionExecutionRepository.loadExecuteInformation(safeAddress, paymentToken.address, transaction).await()
+
+                val gasFee = with(executeInfo) {
+                    (txGas + dataGas + operationalGas) * gasPrice
+                }
+                _state.postValue(
+                    ViewUpdate(
+                        paymentToken.displayString(balance),
+                        ERC20TokenWithBalance(paymentToken, gasFee).displayString(roundingMode = RoundingMode.UP),
+                        paymentToken.displayString(balance - gasFee),
+                        paymentToken.symbol,
+                        balance > gasFee
+
+                    )
                 )
-            )
+            }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        balanceChannel.cancel()
     }
 
     companion object {
