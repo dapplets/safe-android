@@ -14,6 +14,7 @@ import pm.gnosis.heimdall.di.components.ViewComponent
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.safe.main.SafeMainActivity
+import pm.gnosis.heimdall.utils.colorStatusBar
 import pm.gnosis.svalinn.common.utils.snackbar
 import pm.gnosis.svalinn.common.utils.startActivity
 import pm.gnosis.svalinn.common.utils.toast
@@ -27,7 +28,7 @@ class FingerprintSetupActivity : ViewModelActivity<FingerprintSetupContract>() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        colorStatusBar(R.color.safe_green)
+        colorStatusBar(window, R.color.safe_green)
         super.onCreate(savedInstanceState)
     }
 
