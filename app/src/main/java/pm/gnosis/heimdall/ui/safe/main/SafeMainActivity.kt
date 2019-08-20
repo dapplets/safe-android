@@ -31,13 +31,12 @@ import pm.gnosis.heimdall.ui.addressbook.list.AddressBookActivity
 import pm.gnosis.heimdall.ui.base.Adapter
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsActivity
-import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionActivity
+import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionStartActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeIntroActivity
 import pm.gnosis.heimdall.ui.safe.details.SafeDetailsFragment
 import pm.gnosis.heimdall.ui.safe.list.SafeAdapter
 import pm.gnosis.heimdall.ui.safe.pending.DeploySafeProgressFragment
 import pm.gnosis.heimdall.ui.safe.pending.SafeCreationFundFragment
-import pm.gnosis.heimdall.ui.safe.recover.extension.ReplaceExtensionPairingActivity
 import pm.gnosis.heimdall.ui.safe.recover.extension.ReplaceExtensionStartActivity
 import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.ScanExtensionAddressActivity
 import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.SetupNewRecoveryPhraseIntroActivity
@@ -388,7 +387,7 @@ class SafeMainActivity : ViewModelActivity<SafeMainContract>() {
                         openUrl(getString(R.string.etherscan_address_url, safe.address().asEthereumAddressString()))
                     }
                     R.id.safe_details_menu_connect -> selectedSafe?.let { safe ->
-                        startActivity(ConnectExtensionActivity.createIntent(this, safe.address()))
+                        startActivity(ConnectExtensionStartActivity.createIntent(this, safe.address()))
                     }
                 }
             }, onError = Timber::e)
