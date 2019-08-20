@@ -5,21 +5,15 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.Html
 import android.text.SpannableStringBuilder
-import androidx.lifecycle.*
-import com.squareup.moshi.Moshi
+import androidx.lifecycle.Observer
 import io.reactivex.rxkotlin.plusAssign
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.rx2.await
 import pm.gnosis.heimdall.BuildConfig
 import pm.gnosis.heimdall.R
-import pm.gnosis.heimdall.data.remote.models.push.PushServiceTemporaryAuthorization
-import pm.gnosis.heimdall.data.repositories.PushServiceRepository
 import pm.gnosis.heimdall.di.components.ViewComponent
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.qrscan.QRCodeScanActivity
+import pm.gnosis.heimdall.ui.safe.pairing.PairingAuthenticatorContract
 import pm.gnosis.heimdall.utils.handleQrCodeActivityResult
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.common.utils.shareExternalText
@@ -29,14 +23,13 @@ import pm.gnosis.svalinn.common.utils.visible
 import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.asEthereumAddressString
 import timber.log.Timber
-import javax.inject.Inject
 import kotlinx.android.synthetic.main.screen_replace_extension_qr.replace_extension_back_arrow as backArrow
 import kotlinx.android.synthetic.main.screen_replace_extension_qr.replace_extension_bottom_panel as bottomPanel
 import kotlinx.android.synthetic.main.screen_replace_extension_qr.replace_extension_coordinator as coordinator
 import kotlinx.android.synthetic.main.screen_replace_extension_qr.replace_extension_extension_link as extensionLink
 import kotlinx.android.synthetic.main.screen_replace_extension_qr.replace_extension_progress_bar as progressBar
 
-class ReplaceExtensionQrActivity : ViewModelActivity<ReplaceExtensionQrContract>() {
+class ReplaceExtensionQrActivity : ViewModelActivity<PairingAuthenticatorContract>() {
 
     override fun layout() = R.layout.screen_replace_extension_qr
 
@@ -57,23 +50,30 @@ class ReplaceExtensionQrActivity : ViewModelActivity<ReplaceExtensionQrContract>
 
         viewModel.observableState.observe(this, Observer {
 
-            onPairingLoading(it.isLoading)
+            onLoading(it.isLoading)
 
-            it.pairingResult?.let {
+            when(it) {
 
-                when(it) {
+                is PairingAuthenticatorContract.ViewUpdate.Pairing -> {
 
-                    is ReplaceExtensionQrContract.PairingResult.PairingSuccess -> {
-                        toast(R.string.devices_paired_successfuly)
-                        startActivity(ReplaceExtensionRecoveryPhraseActivity.createIntent(this, safeAddress!!, it.extension))
-                    }
+                    it.pairingResult?.let {
 
-                    is ReplaceExtensionQrContract.PairingResult.PairingError -> {
-                        snackbar(coordinator, R.string.error_pairing_devices)
-                        Timber.e(it.error)
+                        when(it) {
+
+                            is PairingAuthenticatorContract.PairingResult.PairingSuccess -> {
+                                toast(R.string.devices_paired_successfuly)
+                                startActivity(ReplaceExtensionRecoveryPhraseActivity.createIntent(this, safeAddress!!, it.extension))
+                            }
+
+                            is PairingAuthenticatorContract.PairingResult.PairingError -> {
+                                snackbar(coordinator, R.string.error_pairing_devices)
+                                Timber.e(it.error)
+                            }
+                        }
                     }
                 }
             }
+
         })
 
         extensionLink.apply {
@@ -99,7 +99,7 @@ class ReplaceExtensionQrActivity : ViewModelActivity<ReplaceExtensionQrContract>
         handleQrCodeActivityResult(requestCode, resultCode, data, onQrCodeResult = { viewModel.pair(it) })
     }
 
-    private fun onPairingLoading(isLoading: Boolean) {
+    private fun onLoading(isLoading: Boolean) {
         bottomPanel.disabled = isLoading
         progressBar.visible(isLoading)
     }
@@ -111,76 +111,5 @@ class ReplaceExtensionQrActivity : ViewModelActivity<ReplaceExtensionQrContract>
         fun createIntent(context: Context, safeAddress: Solidity.Address) = Intent(context, ReplaceExtensionQrActivity::class.java).apply {
             putExtra(EXTRA_SAFE_ADDRESS, safeAddress.asEthereumAddressString())
         }
-    }
-}
-
-abstract class ReplaceExtensionQrContract : ViewModel() {
-
-    abstract val observableState: LiveData<ViewUpdate>
-
-    abstract fun setup(safeAddress: Solidity.Address)
-
-    /**
-     * @param signingSafe to indicate which key should be used for pairing. @null if a new key should be generated
-     */
-    abstract fun pair(payload: String)
-
-
-    data class ViewUpdate(
-        val isLoading: Boolean,
-        val pairingResult: PairingResult? = null
-    )
-
-    sealed class PairingResult {
-
-        data class PairingError(val error: Exception) : PairingResult()
-
-        data class PairingSuccess(val safe: Solidity.Address, val extension: Solidity.Address) : PairingResult()
-    }
-}
-
-class ReplaceExtensionQrViewModel @Inject constructor(
-    private val pushServiceRepository: PushServiceRepository,
-    private val moshi: Moshi
-) : ReplaceExtensionQrContract() {
-
-    override val observableState: LiveData<ViewUpdate>
-        get() = _state
-    private val _state = MutableLiveData<ViewUpdate>()
-
-    private lateinit var safeAddress: Solidity.Address
-
-    override fun setup(safeAddress: Solidity.Address) {
-
-        this.safeAddress = safeAddress
-    }
-
-    override fun pair(payload: String) {
-
-        viewModelScope.launch(Dispatchers.IO) {
-
-            _state.postValue(
-                ViewUpdate(true)
-            )
-
-            try {
-
-                val authorization = parseChromeExtensionPayload(payload)
-                val pairResult = pushServiceRepository.pair(authorization, safeAddress).await()
-
-                _state.postValue(
-                    ViewUpdate(false, PairingResult.PairingSuccess(pairResult.first.address, pairResult.second))
-                )
-
-            } catch (e: Exception) {
-                _state.postValue(
-                    ViewUpdate(false, PairingResult.PairingError(e))
-                )
-            }
-        }
-    }
-
-    private suspend fun parseChromeExtensionPayload(payload: String): PushServiceTemporaryAuthorization = coroutineScope {
-        moshi.adapter(PushServiceTemporaryAuthorization::class.java).fromJson(payload)!!
     }
 }

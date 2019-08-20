@@ -17,6 +17,7 @@ import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupActivity
 import pm.gnosis.heimdall.ui.qrscan.QRCodeScanActivity
 import pm.gnosis.heimdall.ui.recoveryphrase.RecoveryPhraseIntroActivity
 import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionActivity
+import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionStartActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeConfirmRecoveryPhraseActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeIntroActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafePaymentTokenActivity
@@ -128,6 +129,7 @@ interface ViewComponent {
     fun inject(activity: WalletConnectLinkActivity)
     fun inject(activity: WalletConnectSessionsActivity)
 
+    fun inject(activity: ConnectExtensionStartActivity)
     fun inject(activity: ReplaceExtensionStartActivity)
     fun inject(activity: ReplaceExtensionQrActivity)
 

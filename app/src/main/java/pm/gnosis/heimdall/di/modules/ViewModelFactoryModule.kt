@@ -31,6 +31,8 @@ import pm.gnosis.heimdall.ui.safe.details.transactions.SafeTransactionsContract
 import pm.gnosis.heimdall.ui.safe.details.transactions.SafeTransactionsViewModel
 import pm.gnosis.heimdall.ui.safe.main.SafeMainContract
 import pm.gnosis.heimdall.ui.safe.main.SafeMainViewModel
+import pm.gnosis.heimdall.ui.safe.pairing.PairingAuthenticatorContract
+import pm.gnosis.heimdall.ui.safe.pairing.PairingAuthenticatorViewModel
 import pm.gnosis.heimdall.ui.safe.pairing.PairingContract
 import pm.gnosis.heimdall.ui.safe.pairing.PairingViewModel
 import pm.gnosis.heimdall.ui.safe.pending.DeploySafeProgressContract
@@ -194,16 +196,8 @@ abstract class ViewModelFactoryModule {
 
     @Binds
     @IntoMap
-    @ViewModelKey(ReplaceExtensionStartContract::class)
-    abstract fun bindsReplaceExtensionStartContract(viewModel: ReplaceExtensionStartViewModel): ViewModel
-
-
-    @Binds
-    @IntoMap
-    @ViewModelKey(ReplaceExtensionQrContract::class)
-    abstract fun bindsReplaceExtensionQrContract(viewModel: ReplaceExtensionQrViewModel): ViewModel
-
-
+    @ViewModelKey(PairingAuthenticatorContract::class)
+    abstract fun bindsPairingAuthenticatorContract(viewModel: PairingAuthenticatorViewModel): ViewModel
 
 
 
