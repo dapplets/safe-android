@@ -51,7 +51,7 @@ class ConfirmationDialog : BaseDialog() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialog = super.onCreateDialog(savedInstanceState)
-        colorStatusBar(dialog.window, R.color.white)
+        dialog.window.colorStatusBar(R.color.white)
         return dialog
     }
 
