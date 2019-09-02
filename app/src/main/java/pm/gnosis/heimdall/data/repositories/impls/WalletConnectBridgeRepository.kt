@@ -22,6 +22,7 @@ import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
 import kotlinx.coroutines.rx2.await
+import okio.internal.commonAsUtf8ToByteArray
 import org.json.JSONObject
 import org.walletconnect.Session
 import org.walletconnect.impls.WCSession
@@ -44,9 +45,7 @@ import pm.gnosis.heimdall.utils.shortChecksumString
 import pm.gnosis.model.Solidity
 import pm.gnosis.models.Transaction
 import pm.gnosis.models.Wei
-import pm.gnosis.utils.asEthereumAddress
-import pm.gnosis.utils.asEthereumAddressString
-import pm.gnosis.utils.hexAsBigIntegerOrNull
+import pm.gnosis.utils.*
 import retrofit2.http.Body
 import retrofit2.http.POST
 import timber.log.Timber
@@ -338,46 +337,21 @@ class WalletConnectBridgeRepository @Inject constructor(
 
                             values.add(value);
                     }
+
+                    val fn = tx.getString("function")
+
+                    val bytes = fn.commonAsUtf8ToByteArray()
+                    val hash = Sha3Utils.keccak(bytes).toHexString()
+                    val signature = hash.substring(0, 8)
+
+                    val types = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",")
+
+                    Log.d("TAG", signature)
+                    Log.d("TAG", types.toString())
                 }
             }, { error ->
                 error.printStackTrace()
             })
-                /*
-        .doOnSuccess {
-            val context = it.context;
-            val views = it.views;
-            val transactions = it.transactions;
-        }
-        */
-
-
-
-
-        /*
-        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        val intent = ReviewDappletTransactionActivity.createIntent(context, safe, data, referenceId, sessionId)
-        // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
-        // TODO: Adjust check when Q is released
-        if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {
-            val icon = peerMeta?.icons?.firstOrNull()?.let { nullOnThrow { picasso.load(it).get() } }
-            val notification = localNotificationManager.builder(
-                    peerMeta?.name ?: context.getString(R.string.unknown_dapp),
-                    context.getString(R.string.notification_new_transaction_request),
-                    PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT),
-                    CHANNEL_WALLET_CONNECT_REQUESTS
-            )
-                    .setSubText(safe.shortChecksumString())
-                    .setLargeIcon(icon)
-                    .build()
-            localNotificationManager.show(
-                    referenceId.hashCode(),
-                    notification
-            )
-        } else {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        }
-         */
     }
 
     override fun createSession(url: String, safe: Solidity.Address): String =
