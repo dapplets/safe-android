@@ -8,9 +8,12 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
+import android.util.Log
+import android.util.Log.*
 import androidx.core.os.BuildCompat
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.squareup.moshi.JsonWriter
 import com.squareup.picasso.Picasso
 import io.reactivex.Completable
 import io.reactivex.Observable
@@ -18,14 +21,19 @@ import io.reactivex.Single
 import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
+import kotlinx.coroutines.rx2.await
+import org.json.JSONObject
 import org.walletconnect.Session
 import org.walletconnect.impls.WCSession
 import org.walletconnect.impls.WCSessionStore
 import org.walletconnect.nullOnThrow
+import pm.gnosis.crypto.utils.HashUtils
+import pm.gnosis.crypto.utils.Sha3Utils
 import pm.gnosis.ethereum.rpc.models.JsonRpcError
 import pm.gnosis.heimdall.BuildConfig
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.preferences.PreferencesWalletConnect
+import pm.gnosis.heimdall.data.remote.DappletServiceApi
 import pm.gnosis.heimdall.data.repositories.*
 import pm.gnosis.heimdall.data.repositories.models.SafeTransaction
 import pm.gnosis.heimdall.di.ApplicationContext
@@ -55,6 +63,7 @@ class WalletConnectBridgeRepository @Inject constructor(
     private val sessionStore: WCSessionStore,
     private val sessionBuilder: SessionBuilder,
     private val prefs: PreferencesWalletConnect,
+    private val dappletServiceApi: DappletServiceApi,
     executionRepository: TransactionExecutionRepository
 ) : BridgeRepository, TransactionExecutionRepository.TransactionEventsCallback {
 
@@ -198,16 +207,33 @@ class WalletConnectBridgeRepository @Inject constructor(
                             call.apply {
                                 sessionRequests[id] = sessionId
                                 try {
-                                    rpcProxyApi.proxy(RpcProxyApi.ProxiedRequest(method, (params as? List<Any>) ?: emptyList(), id))
-                                        .subscribeBy(onError = { t ->
-                                            rejectRequest(id, 42, t.message ?: "Could not handle custom call")
-                                        }) { result ->
-                                            result.error?.let { error ->
-                                                rejectRequest(id, error.code.toLong(), error.message).subscribe()
-                                            } ?: run {
-                                                approveRequest(id, result.result ?: "").subscribe()
-                                            }
+                                    if (method == "wallet_checkDappletCompatibility") {
+                                        approveRequest(id, true).subscribe()
+                                    } else if (method == "wallet_loadDapplet") {
+                                        //rejectRequest(id, 42, "The Gnosis Safe doesn't support Dapplet Transactions").subscribe()
+                                        if (params?.size != 2) {
+                                            rejectRequest(id, 42, "Invalid Dapplet Transaction Request").subscribe()
+                                        } else {
+                                            val dappletId = params?.get(0)?.toString() ?: throw IllegalArgumentException("Invalid DappletId")
+                                            val txMeta = JSONObject(params?.get(1) as Map<String, Any>)
+
+                                            showSendDappletTransactionNotification(session.peerMeta(), dappletId, txMeta, id, sessionId)
                                         }
+                                    } else {
+                                        rpcProxyApi.proxy(RpcProxyApi.ProxiedRequest(method, (params as? List<Any>)
+                                                ?: emptyList(), id))
+                                                .subscribeBy(onError = { t ->
+                                                    rejectRequest(id, 42, t.message
+                                                            ?: "Could not handle custom call")
+                                                }) { result ->
+                                                    result.error?.let { error ->
+                                                        rejectRequest(id, error.code.toLong(), error.message).subscribe()
+                                                    } ?: run {
+                                                        approveRequest(id, result.result
+                                                                ?: "").subscribe()
+                                                    }
+                                                }
+                                    }
                                 } catch (e: Exception) {
                                     Timber.e(e)
                                     rejectRequest(id, 42, "Could not handle custom call: $e").subscribe()
@@ -273,6 +299,85 @@ class WalletConnectBridgeRepository @Inject constructor(
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
         }
+    }
+
+    private fun showSendDappletTransactionNotification(
+            peerMeta: Session.PeerMeta?,
+            dappletId: String,
+            txMeta: JSONObject,
+            referenceId: Long,
+            sessionId: String
+    ) {
+        val dappletCall = dappletServiceApi.getDapplet(dappletId)
+            .subscribe ({
+                response ->
+                val json = response.string()
+                val result = JSONObject(json)
+                val context = result.getJSONObject("@context")
+                val views = result.getJSONArray("views")
+                val transactions = result.getJSONObject("transactions")
+
+                transactions.keys().forEach {
+                    val tx = transactions.getJSONObject(it)
+                    val type = tx.getString("@type")
+                    val args = tx.getJSONArray("args")
+                    val values = mutableListOf<Any?>()
+
+                    for (i in 0..(args.length() - 1) step 1) {
+                        val arg = args.getString(i)
+                        val prop = arg.split(":")[0]
+                            var value = txMeta.getString(prop)
+                            val chain = arg.split(":")
+
+                            chain.forEach({
+                                fnName ->
+                                if (fnName != prop) {
+                                    value = value; // ToDo
+                                }
+                            })
+
+                            values.add(value);
+                    }
+                }
+            }, { error ->
+                error.printStackTrace()
+            })
+                /*
+        .doOnSuccess {
+            val context = it.context;
+            val views = it.views;
+            val transactions = it.transactions;
+        }
+        */
+
+
+
+
+        /*
+        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+        val intent = ReviewDappletTransactionActivity.createIntent(context, safe, data, referenceId, sessionId)
+        // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
+        // TODO: Adjust check when Q is released
+        if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {
+            val icon = peerMeta?.icons?.firstOrNull()?.let { nullOnThrow { picasso.load(it).get() } }
+            val notification = localNotificationManager.builder(
+                    peerMeta?.name ?: context.getString(R.string.unknown_dapp),
+                    context.getString(R.string.notification_new_transaction_request),
+                    PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT),
+                    CHANNEL_WALLET_CONNECT_REQUESTS
+            )
+                    .setSubText(safe.shortChecksumString())
+                    .setLargeIcon(icon)
+                    .build()
+            localNotificationManager.show(
+                    referenceId.hashCode(),
+                    notification
+            )
+        } else {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }
+         */
     }
 
     override fun createSession(url: String, safe: Solidity.Address): String =

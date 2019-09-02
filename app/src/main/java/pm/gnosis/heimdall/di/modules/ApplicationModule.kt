@@ -40,6 +40,7 @@ import pm.gnosis.heimdall.data.preferences.PreferencesToken
 import pm.gnosis.heimdall.data.preferences.PreferencesWalletConnect
 import pm.gnosis.heimdall.data.remote.PushServiceApi
 import pm.gnosis.heimdall.data.remote.RelayServiceApi
+import pm.gnosis.heimdall.data.remote.DappletServiceApi
 import pm.gnosis.heimdall.data.repositories.impls.RpcProxyApi
 import pm.gnosis.heimdall.di.ApplicationContext
 import pm.gnosis.mnemonic.Bip39
@@ -187,6 +188,16 @@ class ApplicationModule(private val application: Application) {
             .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()))
             .build()
             .create(RelayServiceApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providesDappletServiceApi(moshi: Moshi, client: OkHttpClient): DappletServiceApi =
+            Retrofit.Builder()
+                    .client(client)
+                    .baseUrl(BuildConfig.DAPPLET_SERVICE_URL)
+                    .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()))
+                    .build()
+                    .create(DappletServiceApi::class.java)
 
     @Provides
     @Singleton
