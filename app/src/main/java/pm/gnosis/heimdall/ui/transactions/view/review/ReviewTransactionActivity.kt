@@ -4,6 +4,7 @@ package pm.gnosis.heimdall.ui.transactions.view.review
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.TextView
 import androidx.core.widget.NestedScrollView
 import com.jakewharton.rxbinding2.view.clicks
 import com.squareup.picasso.Callback
@@ -36,6 +37,7 @@ import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.toHexString
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.math.log
 
 class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>(), UnlockDialog.UnlockCallback {
 
@@ -73,7 +75,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         }
 
         referenceId = if (intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
-        viewModel.setup(safeAddress, referenceId, intent.getStringExtra(EXTRA_SESSION_ID))
+        viewModel.setup(safeAddress, referenceId, intent.getStringExtra(EXTRA_SESSION_ID), intent.getStringExtra(EXTRA_DAPPLET_VIEW))
         infoViewHelper.bind(layout_review_transaction_transaction_info)
     }
 
@@ -120,6 +122,10 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         (layout_review_transaction_transaction_info as? NestedScrollView)?.let {
             disposables += toolbarHelper.setupShadow(layout_review_transaction_toolbar_shadow, it)
         }
+
+        include_transaction_submit_info_dapplet.text = intent.getStringExtra(EXTRA_DAPPLET_VIEW)
+
+
     }
 
     override fun onPause() {
@@ -197,14 +203,17 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         private const val EXTRA_SAFE_ADDRESS = "extra.string.safe_address"
         private const val EXTRA_REFERENCE_ID = "extra.long.reference_id"
         private const val EXTRA_SESSION_ID = "extra.string.session_id"
-        fun createIntent(context: Context, safe: Solidity.Address, txData: TransactionData, referenceId: Long? = null, sessionId: String? = null) =
+        private const val EXTRA_DAPPLET_VIEW = "extra.string.dapplet_view"
+        fun createIntent(context: Context, safe: Solidity.Address, txData: TransactionData, referenceId: Long? = null, sessionId: String? = null, renderedDapplet: String? = null) =
             Intent(context, ReviewTransactionActivity::class.java).apply {
                 putExtra(EXTRA_SAFE_ADDRESS, safe.value.toHexString())
                 referenceId?.let { putExtra(EXTRA_REFERENCE_ID, it) }
                 putExtra(EXTRA_SESSION_ID, sessionId)
+                putExtra(EXTRA_DAPPLET_VIEW, renderedDapplet)
                 putExtras(Bundle().apply {
                     txData.addToBundle(this)
                 })
+
             }
     }
 }

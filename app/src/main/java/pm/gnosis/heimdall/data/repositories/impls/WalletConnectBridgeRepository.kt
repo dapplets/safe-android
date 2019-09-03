@@ -24,14 +24,18 @@ import io.reactivex.subjects.BehaviorSubject
 import kotlinx.coroutines.rx2.await
 import okio.internal.commonAsUtf8ToByteArray
 import org.json.JSONObject
+import org.kethereum.functions.rlp.encode
 import org.walletconnect.Session
 import org.walletconnect.impls.WCSession
 import org.walletconnect.impls.WCSessionStore
 import org.walletconnect.nullOnThrow
+import org.web3j.crypto.RawTransaction
 import pm.gnosis.crypto.utils.HashUtils
 import pm.gnosis.crypto.utils.Sha3Utils
+import pm.gnosis.ethereum.EthSendRawTransaction
 import pm.gnosis.ethereum.rpc.models.JsonRpcError
 import pm.gnosis.heimdall.BuildConfig
+import pm.gnosis.heimdall.MultiSend
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.preferences.PreferencesWalletConnect
 import pm.gnosis.heimdall.data.remote.DappletServiceApi
@@ -43,12 +47,14 @@ import pm.gnosis.heimdall.services.BridgeService
 import pm.gnosis.heimdall.ui.transactions.view.review.ReviewTransactionActivity
 import pm.gnosis.heimdall.utils.shortChecksumString
 import pm.gnosis.model.Solidity
+import pm.gnosis.model.SolidityBase
 import pm.gnosis.models.Transaction
 import pm.gnosis.models.Wei
 import pm.gnosis.utils.*
 import retrofit2.http.Body
 import retrofit2.http.POST
 import timber.log.Timber
+import java.math.BigInteger
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -273,10 +279,11 @@ class WalletConnectBridgeRepository @Inject constructor(
         safe: Solidity.Address,
         data: TransactionData,
         referenceId: Long,
-        sessionId: String
+        sessionId: String,
+        renderedDapplet: String? = null
     ) {
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        val intent = ReviewTransactionActivity.createIntent(context, safe, data, referenceId, sessionId)
+        val intent = ReviewTransactionActivity.createIntent(context, safe, data, referenceId, sessionId, renderedDapplet)
         // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
         // TODO: Adjust check when Q is released
         if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {
@@ -316,38 +323,98 @@ class WalletConnectBridgeRepository @Inject constructor(
                 val views = result.getJSONArray("views")
                 val transactions = result.getJSONObject("transactions")
 
+                var renderedDapplet = "The dapplet doesn't contain compatible view.";
+
+                for (i in 0..(views.length() - 1) step 1) {
+                    val view = views.getJSONObject(i)
+                    if (view.getString("@type") != "view-plain-mustache") continue
+
+                    var tpl = view.getString("template")
+                    txMeta.keys().forEach {
+                        tpl = tpl.replace("{{" + it + "}}", txMeta.getString(it))
+                    }
+
+                    renderedDapplet = tpl
+                }
+
                 transactions.keys().forEach {
                     val tx = transactions.getJSONObject(it)
-                    val type = tx.getString("@type")
+                    val txType = tx.getString("@type")
                     val args = tx.getJSONArray("args")
-                    val values = mutableListOf<Any?>()
+                    val fn = tx.getString("function")
+                    val types = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",")
+                    val values = mutableListOf<SolidityBase.Type>()
 
                     for (i in 0..(args.length() - 1) step 1) {
                         val arg = args.getString(i)
                         val prop = arg.split(":")[0]
-                            var value = txMeta.getString(prop)
-                            val chain = arg.split(":")
+                        var value = txMeta.getString(prop)
+                        val chain = arg.split(":")
 
-                            chain.forEach({
-                                fnName ->
-                                if (fnName != prop) {
-                                    value = value; // ToDo
-                                }
-                            })
+                        chain.forEach({
+                            fnName ->
+                            if (fnName != prop) {
+                                value = value; // ToDo
+                            }
+                        })
 
-                            values.add(value);
+//                        val type = Solidity.aliases.get(types[i]) ?: types[i]
+//                        val internalType = Solidity.types.get(type)
+//                        val kClass = Class.forName(internalType).kotlin
+//                        val ethValue = kClass.constructors.first().call(value) as SolidityBase.Type
+
+
+
+                        //values.add(ethValue)
                     }
 
-                    val fn = tx.getString("function")
+                    //val data = SolidityBase.encodeTuple(values)
+
 
                     val bytes = fn.commonAsUtf8ToByteArray()
                     val hash = Sha3Utils.keccak(bytes).toHexString()
                     val signature = hash.substring(0, 8)
 
-                    val types = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",")
 
-                    Log.d("TAG", signature)
-                    Log.d("TAG", types.toString())
+                    //val rawTx = RawTransaction.
+                    //org.web3j.crypto.
+
+//                    val data = SolidityBase.encodeFunctionArguments(
+//                        Solidity.UInt8(BigInteger.ZERO),
+//                        safeInfo.address,
+//                        Solidity.UInt256(BigInteger.ZERO),
+//                        Solidity.Bytes(it.hexStringToByteArray())
+//                    )
+
+                    val from = "0xf8808c9777c7fdcaeee6d9fa354eae41b5e1d13e"
+                    val to = "0xccf7930d9b1fa67d101e3de18de5416dc66bd852"
+                    val value = "0x00"
+                    val data = "0xc8d8a70e000000000000000000000000000000000000000000000000102084c61d16b0026c10c20ee6d68dd900f8e4affeb2d6af65de82d0ccab957205a3f26411573b57"
+
+                    Single.fromCallable {
+                        val safe = from.asEthereumAddress() ?: throw IllegalArgumentException("Invalid Safe address: $from")
+                        val txTo = to.asEthereumAddress() ?: throw IllegalArgumentException("Invalid to address: $to")
+                        val txValue = value.hexAsBigIntegerOrNull() ?: throw IllegalArgumentException("Invalid to value: $value")
+
+                        safe to SafeTransaction(
+                            Transaction(txTo, value = Wei(txValue), data = data),
+                            TransactionExecutionRepository.Operation.CALL
+                        )
+                    }
+                        .flatMap { (safe, tx) ->
+                            infoRepository.checkRestrictedTransaction(safe, tx)
+                                    .flatMap(infoRepository::parseTransactionData)
+                                    .map { txData -> safe to txData }
+                        }
+                        .subscribeBy(onError = { t ->
+                            val message = when (t) {
+                                is RestrictedTransactionException -> "This transaction is not allowed"
+                                else -> t.message ?: "Could not handle transaction"
+                            }
+                            rejectRequest(referenceId, 42, message).subscribe()
+                        }) { (safe, txData) ->
+                            showSendTransactionNotification(peerMeta, safe, txData, referenceId, sessionId, renderedDapplet)
+                        }
                 }
             }, { error ->
                 error.printStackTrace()

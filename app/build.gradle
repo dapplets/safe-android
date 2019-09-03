@@ -280,6 +280,7 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$versions.kotlinx_coroutines"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$versions.kotlinx_coroutines"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:$versions.kotlinx_coroutines"
+    implementation "org.jetbrains.kotlin:kotlin-reflect:$versions.kotlin"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.androidx_lifecycle"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$versions.androidx_lifecycle"
     implementation "androidx.room:room-ktx:$versions.androidx_room"
@@ -306,6 +307,7 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$versions.androidx_test_ext"
 
     androidTestImplementation "android.arch.persistence.room:testing:$versions.androidx_room"
+    implementation 'org.web3j:crypto:3.1.1-android'
 
 }
 
