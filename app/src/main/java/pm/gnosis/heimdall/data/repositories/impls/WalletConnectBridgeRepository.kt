@@ -315,21 +315,29 @@ class WalletConnectBridgeRepository @Inject constructor(
             referenceId: Long,
             sessionId: String
     ) {
+        val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val intent = DappletActivity.createIntent(context, safe, dappletId, txMeta, referenceId, sessionId)
-        val icon = peerMeta?.icons?.firstOrNull()?.let { nullOnThrow { picasso.load(it).get() } }
-        val notification = localNotificationManager.builder(
+        // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
+        // TODO: Adjust check when Q is released
+        if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {
+            val icon = peerMeta?.icons?.firstOrNull()?.let { nullOnThrow { picasso.load(it).get() } }
+            val notification = localNotificationManager.builder(
                 peerMeta?.name ?: context.getString(R.string.unknown_dapp),
                 context.getString(R.string.notification_new_transaction_dapplet_request),
                 PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT),
                 CHANNEL_WALLET_CONNECT_REQUESTS
-        )
+            )
                 .setSubText(safe.shortChecksumString())
                 .setLargeIcon(icon)
                 .build()
         localNotificationManager.show(
                 referenceId.hashCode(),
                 notification
-        )
+            )
+        } else {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }
     }
 
     /*
