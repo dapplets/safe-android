@@ -20,7 +20,7 @@ object GenericTransactionBuilder : TransactionBuilder<TransactionData.Generic> {
                 data.to,
                 value = Wei(data.value),
                 data = data.data
-            ), TransactionExecutionRepository.Operation.CALL
+            ), data.operation
         )
 }
 

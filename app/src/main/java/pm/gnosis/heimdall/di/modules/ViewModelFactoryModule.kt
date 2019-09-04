@@ -15,6 +15,8 @@ import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputContract
 import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputViewModel
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageContract
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageViewModel
+import pm.gnosis.heimdall.ui.modules.dapplet.DappletContract
+import pm.gnosis.heimdall.ui.modules.dapplet.DappletViewModel
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupContract
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupViewModel
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupContract
@@ -147,6 +149,11 @@ abstract class ViewModelFactoryModule {
     @IntoMap
     @ViewModelKey(GeneralSettingsContract::class)
     abstract fun bindsGeneralSettingsContract(viewModel: GeneralSettingsViewModel): ViewModel
+
+    @Binds
+    @IntoMap
+    @ViewModelKey(DappletContract::class)
+    abstract fun bindsLocationRecoveryContract(viewModel: DappletViewModel): ViewModel
 
     @Binds
     @IntoMap

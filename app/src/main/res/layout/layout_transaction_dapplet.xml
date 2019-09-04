@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/transaction_dapplet_coordinator"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toTopOf="@+id/transaction_dapplet_submit"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_toolbar_background">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="16dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginTop="24dp">
+
+                <pm.gnosis.blockies.BlockiesImageView
+                    android:id="@+id/transaction_dapplet_safe_image"
+                    android:layout_width="@dimen/info_blockies"
+                    android:layout_height="@dimen/info_blockies"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    tools:background="@drawable/circle_settings" />
+
+                <TextView
+                    android:id="@+id/transaction_dapplet_safe_name"
+                    style="@style/DarkText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginStart="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    app:layout_constraintBottom_toTopOf="@+id/transaction_dapplet_safe_address"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/transaction_dapplet_safe_image"
+                    app:layout_constraintTop_toTopOf="@+id/transaction_dapplet_safe_image"
+                    tools:text="My Safe" />
+
+                <TextView
+                    android:id="@+id/transaction_dapplet_safe_address"
+                    style="@style/LightText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginStart="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_safe_image"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@+id/transaction_dapplet_safe_image"
+                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_safe_name"
+                    tools:text="0xf151...aE3910" />
+
+                <TextView
+                    android:id="@+id/transaction_dapplet_action"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:maxLines="1"
+                    android:paddingBottom="16dp"
+                    android:paddingTop="16dp"
+                    android:text="ADD TEXT HERE"
+                    android:textColor="@color/blue"
+                    android:textSize="13sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_safe_address" />
+
+                <androidx.constraintlayout.widget.Barrier
+                    android:id="@+id/transaction_dapplet_content_barrier"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:barrierDirection="start"
+                    app:constraint_referenced_ids="transaction_dapplet_action" />
+
+                <ImageView
+                    android:id="@+id/transaction_dapplet_arrow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="9dp"
+                    android:src="@drawable/ic_tx_arrow_down"
+                    app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_divider"
+                    app:layout_constraintEnd_toStartOf="@+id/transaction_dapplet_divider"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="@+id/transaction_dapplet_divider" />
+
+                <View
+                    android:id="@+id/transaction_dapplet_divider"
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_marginEnd="8dp"
+                    android:layout_marginStart="16dp"
+                    android:background="@color/divider"
+                    app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_action"
+                    app:layout_constraintEnd_toStartOf="@+id/transaction_dapplet_action"
+                    app:layout_constraintStart_toEndOf="@+id/transaction_dapplet_arrow"
+                    app:layout_constraintTop_toTopOf="@+id/transaction_dapplet_action" />
+
+
+                <androidx.constraintlayout.widget.Barrier
+                    android:id="@+id/transaction_dapplet_description_barrier"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:barrierDirection="bottom"
+                    app:constraint_referenced_ids="transaction_dapplet_action,transaction_dapplet_divider,transaction_dapplet_arrow" />
+
+                <TextView
+                    android:id="@+id/transaction_dapplet_description"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:lineSpacingExtra="3sp"
+                    android:text="Rendered dapplet is here"
+                    android:textColor="@color/dark_grey"
+                    android:textSize="13sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_description_barrier" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+        <View
+            android:id="@+id/transaction_dapplet_toolbar_background"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/toolbar_height"
+            android:background="@color/white"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/transaction_dapplet_back_arrow"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:background="@drawable/selectable_circle_background"
+            android:padding="16dp"
+            app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_toolbar_background"
+            app:layout_constraintStart_toStartOf="@+id/transaction_dapplet_toolbar_background"
+            app:layout_constraintTop_toTopOf="@+id/transaction_dapplet_toolbar_background"
+            app:srcCompat="@drawable/ic_arrow_back_24dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:gravity="center_vertical"
+            android:text="@string/review_transaction"
+            app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_toolbar_background"
+            app:layout_constraintEnd_toEndOf="@+id/transaction_dapplet_toolbar_background"
+            app:layout_constraintStart_toEndOf="@+id/transaction_dapplet_back_arrow"
+            app:layout_constraintTop_toTopOf="@+id/transaction_dapplet_toolbar_background" />
+
+        <me.zhanghai.android.materialprogressbar.MaterialProgressBar
+            android:id="@+id/transaction_dapplet_progress"
+            style="@style/Widget.MaterialProgressBar.ProgressBar.Horizontal"
+            android:layout_width="0dp"
+            android:layout_height="4dp"
+            android:indeterminate="true"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_toolbar_background"
+            app:mpb_progressStyle="horizontal"
+            app:mpb_useIntrinsicPadding="false"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/transaction_dapplet_submit"
+            style="@style/PrimaryButton.Green.FullWidth"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/primary_button_height"
+            android:text="@string/continue_text"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="@dimen/toolbar_shadow_size"
+            android:background="@drawable/toolbar_dropshadow"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_toolbar_background" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

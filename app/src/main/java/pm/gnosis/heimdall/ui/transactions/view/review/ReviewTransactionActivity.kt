@@ -75,7 +75,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         }
 
         referenceId = if (intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
-        viewModel.setup(safeAddress, referenceId, intent.getStringExtra(EXTRA_SESSION_ID), intent.getStringExtra(EXTRA_DAPPLET_VIEW))
+        viewModel.setup(safeAddress, referenceId, intent.getStringExtra(EXTRA_SESSION_ID))
         infoViewHelper.bind(layout_review_transaction_transaction_info)
     }
 
@@ -122,10 +122,6 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         (layout_review_transaction_transaction_info as? NestedScrollView)?.let {
             disposables += toolbarHelper.setupShadow(layout_review_transaction_toolbar_shadow, it)
         }
-
-        include_transaction_submit_info_dapplet.text = intent.getStringExtra(EXTRA_DAPPLET_VIEW)
-
-
     }
 
     override fun onPause() {
@@ -203,13 +199,11 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
         private const val EXTRA_SAFE_ADDRESS = "extra.string.safe_address"
         private const val EXTRA_REFERENCE_ID = "extra.long.reference_id"
         private const val EXTRA_SESSION_ID = "extra.string.session_id"
-        private const val EXTRA_DAPPLET_VIEW = "extra.string.dapplet_view"
-        fun createIntent(context: Context, safe: Solidity.Address, txData: TransactionData, referenceId: Long? = null, sessionId: String? = null, renderedDapplet: String? = null) =
+        fun createIntent(context: Context, safe: Solidity.Address, txData: TransactionData, referenceId: Long? = null, sessionId: String? = null) =
             Intent(context, ReviewTransactionActivity::class.java).apply {
                 putExtra(EXTRA_SAFE_ADDRESS, safe.value.toHexString())
                 referenceId?.let { putExtra(EXTRA_REFERENCE_ID, it) }
                 putExtra(EXTRA_SESSION_ID, sessionId)
-                putExtra(EXTRA_DAPPLET_VIEW, renderedDapplet)
                 putExtras(Bundle().apply {
                     txData.addToBundle(this)
                 })

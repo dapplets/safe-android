@@ -34,7 +34,12 @@ data class TransactionInfo(
 sealed class TransactionData : Parcelable {
     @Parcelize
     @TypeParceler<Solidity.Address, SolidityAddressParceler>
-    data class Generic(val to: Solidity.Address, val value: BigInteger, val data: String?) : TransactionData()
+    data class Generic(
+        val to: Solidity.Address,
+        val value: BigInteger,
+        val data: String?,
+        val operation: TransactionExecutionRepository.Operation = TransactionExecutionRepository.Operation.CALL
+    ) : TransactionData()
 
     @Parcelize
     @TypeParceler<Solidity.Address, SolidityAddressParceler>

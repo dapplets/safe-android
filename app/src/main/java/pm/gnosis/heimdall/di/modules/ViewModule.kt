@@ -14,6 +14,7 @@ import pm.gnosis.heimdall.ui.addressbook.AddressBookContract
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsContract
 import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputContract
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageContract
+import pm.gnosis.heimdall.ui.modules.dapplet.DappletContract
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupContract
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupContract
 import pm.gnosis.heimdall.ui.recoveryphrase.ConfirmRecoveryPhraseContract
@@ -116,6 +117,10 @@ class ViewModule(val context: Context) {
     @Provides
     @ForView
     fun providesGeneralSettingsContract(provider: ViewModelProvider) = provider[GeneralSettingsContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesDappletContract(provider: ViewModelProvider) = provider[DappletContract::class.java]
 
     @Provides
     @ForView

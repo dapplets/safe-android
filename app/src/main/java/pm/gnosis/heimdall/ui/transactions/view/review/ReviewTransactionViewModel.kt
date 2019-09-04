@@ -25,19 +25,17 @@ class ReviewTransactionViewModel @Inject constructor(
 
     private var referenceId: Long? = null
     private var sessionId: String? = null
-    private var renderedDapplet: String? = null
     private lateinit var safe: Solidity.Address
 
     private val cachedState = mutableMapOf<SafeTransaction, TransactionExecutionRepository.ExecuteInformation>()
 
-    override fun setup(safe: Solidity.Address, referenceId: Long?, sessionId: String?, renderedDapplet: String) {
+    override fun setup(safe: Solidity.Address, referenceId: Long?, sessionId: String?) {
         if (nullOnThrow { this.safe } != safe) {
             cachedState.clear()
         }
         this.safe = safe
         this.referenceId = referenceId
         this.sessionId = sessionId
-        this.renderedDapplet = renderedDapplet
         submitTransactionHelper.setup(safe, ::txParams, referenceId)
     }
 

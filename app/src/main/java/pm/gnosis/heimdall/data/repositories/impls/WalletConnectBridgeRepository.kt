@@ -44,6 +44,7 @@ import pm.gnosis.heimdall.data.repositories.models.SafeTransaction
 import pm.gnosis.heimdall.di.ApplicationContext
 import pm.gnosis.heimdall.helpers.LocalNotificationManager
 import pm.gnosis.heimdall.services.BridgeService
+import pm.gnosis.heimdall.ui.modules.dapplet.DappletActivity
 import pm.gnosis.heimdall.ui.transactions.view.review.ReviewTransactionActivity
 import pm.gnosis.heimdall.utils.shortChecksumString
 import pm.gnosis.model.Solidity
@@ -68,7 +69,6 @@ class WalletConnectBridgeRepository @Inject constructor(
     private val sessionStore: WCSessionStore,
     private val sessionBuilder: SessionBuilder,
     private val prefs: PreferencesWalletConnect,
-    private val dappletServiceApi: DappletServiceApi,
     executionRepository: TransactionExecutionRepository
 ) : BridgeRepository, TransactionExecutionRepository.TransactionEventsCallback {
 
@@ -214,31 +214,32 @@ class WalletConnectBridgeRepository @Inject constructor(
                                 try {
                                     if (method == "wallet_checkDappletCompatibility") {
                                         approveRequest(id, true).subscribe()
+                                        return
                                     } else if (method == "wallet_loadDapplet") {
-                                        //rejectRequest(id, 42, "The Gnosis Safe doesn't support Dapplet Transactions").subscribe()
-                                        if (params?.size != 2) {
-                                            rejectRequest(id, 42, "Invalid Dapplet Transaction Request").subscribe()
-                                        } else {
-                                            val dappletId = params?.get(0)?.toString() ?: throw IllegalArgumentException("Invalid DappletId")
-                                            val txMeta = JSONObject(params?.get(1) as Map<String, Any>)
+                                        val data = (params as List<Any>)
+                                        val safe = "0x84bf358e71F3c033d3B4F7cE2eF56A7Ff14c76A4" //(data.first() as String)
+                                        if (session.approvedAccounts()?.contains(safe.toLowerCase()) != true)
+                                            throw IllegalArgumentException("Invalid Safe address: $safe")
+                                        val dappletId = data[0] as String
+                                        val txMeta = JSONObject(data[1] as Map<String, Any>).toString()
 
-                                            showSendDappletTransactionNotification(session.peerMeta(), dappletId, txMeta, id, sessionId)
-                                        }
-                                    } else {
-                                        rpcProxyApi.proxy(RpcProxyApi.ProxiedRequest(method, (params as? List<Any>)
-                                                ?: emptyList(), id))
-                                                .subscribeBy(onError = { t ->
-                                                    rejectRequest(id, 42, t.message
-                                                            ?: "Could not handle custom call")
-                                                }) { result ->
-                                                    result.error?.let { error ->
-                                                        rejectRequest(id, error.code.toLong(), error.message).subscribe()
-                                                    } ?: run {
-                                                        approveRequest(id, result.result
-                                                                ?: "").subscribe()
-                                                    }
-                                                }
+                                        showSendDappletTransactionNotification(session.peerMeta(), safe.asEthereumAddress()!!, dappletId, txMeta, id, sessionId)
+                                        return
                                     }
+
+                                    rpcProxyApi.proxy(RpcProxyApi.ProxiedRequest(method, (params as? List<Any>)
+                                        ?: emptyList(), id))
+                                        .subscribeBy(onError = { t ->
+                                            rejectRequest(id, 42, t.message
+                                                    ?: "Could not handle custom call")
+                                        }) { result ->
+                                            result.error?.let { error ->
+                                                rejectRequest(id, error.code.toLong(), error.message).subscribe()
+                                            } ?: run {
+                                                approveRequest(id, result.result
+                                                        ?: "").subscribe()
+                                            }
+                                        }
                                 } catch (e: Exception) {
                                     Timber.e(e)
                                     rejectRequest(id, 42, "Could not handle custom call: $e").subscribe()
@@ -279,11 +280,10 @@ class WalletConnectBridgeRepository @Inject constructor(
         safe: Solidity.Address,
         data: TransactionData,
         referenceId: Long,
-        sessionId: String,
-        renderedDapplet: String? = null
+        sessionId: String
     ) {
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        val intent = ReviewTransactionActivity.createIntent(context, safe, data, referenceId, sessionId, renderedDapplet)
+        val intent = ReviewTransactionActivity.createIntent(context, safe, data, referenceId, sessionId)
         // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
         // TODO: Adjust check when Q is released
         if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {
@@ -308,6 +308,32 @@ class WalletConnectBridgeRepository @Inject constructor(
     }
 
     private fun showSendDappletTransactionNotification(
+            peerMeta: Session.PeerMeta?,
+            safe: Solidity.Address,
+            dappletId: String,
+            txMeta: String,
+            referenceId: Long,
+            sessionId: String
+    ) {
+        val intent = DappletActivity.createIntent(context, safe, dappletId, txMeta, referenceId, sessionId)
+        val icon = peerMeta?.icons?.firstOrNull()?.let { nullOnThrow { picasso.load(it).get() } }
+        val notification = localNotificationManager.builder(
+                peerMeta?.name ?: context.getString(R.string.unknown_dapp),
+                context.getString(R.string.notification_new_transaction_dapplet_request),
+                PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT),
+                CHANNEL_WALLET_CONNECT_REQUESTS
+        )
+                .setSubText(safe.shortChecksumString())
+                .setLargeIcon(icon)
+                .build()
+        localNotificationManager.show(
+                referenceId.hashCode(),
+                notification
+        )
+    }
+
+    /*
+    private fun showSendDappletTransactionNotification2(
             peerMeta: Session.PeerMeta?,
             dappletId: String,
             txMeta: JSONObject,
@@ -413,13 +439,14 @@ class WalletConnectBridgeRepository @Inject constructor(
                             }
                             rejectRequest(referenceId, 42, message).subscribe()
                         }) { (safe, txData) ->
-                            showSendTransactionNotification(peerMeta, safe, txData, referenceId, sessionId, renderedDapplet)
+                            showSendTransactionNotification(peerMeta, safe, txData, referenceId, sessionId)
                         }
                 }
             }, { error ->
                 error.printStackTrace()
             })
     }
+    */
 
     override fun createSession(url: String, safe: Solidity.Address): String =
         Session.Config.fromWCUri(url).let { config ->
