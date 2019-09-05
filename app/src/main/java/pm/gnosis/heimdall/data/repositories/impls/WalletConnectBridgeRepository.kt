@@ -69,6 +69,7 @@ class WalletConnectBridgeRepository @Inject constructor(
     private val sessionStore: WCSessionStore,
     private val sessionBuilder: SessionBuilder,
     private val prefs: PreferencesWalletConnect,
+    private val dappletServiceApi: DappletServiceApi,
     executionRepository: TransactionExecutionRepository
 ) : BridgeRepository, TransactionExecutionRepository.TransactionEventsCallback {
 
@@ -222,8 +223,9 @@ class WalletConnectBridgeRepository @Inject constructor(
                                             throw IllegalArgumentException("Invalid Safe address: $safe")
                                         val dappletId = data[0] as String
                                         val txMeta = JSONObject(data[1] as Map<String, Any>).toString()
-
-                                        showSendDappletTransactionNotification(session.peerMeta(), safe.asEthereumAddress()!!, dappletId, txMeta, id, sessionId)
+                                        dappletServiceApi.getDapplet(dappletId).subscribe({ response ->
+                                            showSendDappletTransactionNotification(session.peerMeta(), safe.asEthereumAddress()!!, response.string(), txMeta, id, sessionId)
+                                        })
                                         return
                                     }
 
@@ -310,13 +312,13 @@ class WalletConnectBridgeRepository @Inject constructor(
     private fun showSendDappletTransactionNotification(
             peerMeta: Session.PeerMeta?,
             safe: Solidity.Address,
-            dappletId: String,
+            dapplet: String,
             txMeta: String,
             referenceId: Long,
             sessionId: String
     ) {
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        val intent = DappletActivity.createIntent(context, safe, dappletId, txMeta, referenceId, sessionId)
+        val intent = DappletActivity.createIntent(context, safe, dapplet, txMeta, referenceId, sessionId)
         // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
         // TODO: Adjust check when Q is released
         if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {

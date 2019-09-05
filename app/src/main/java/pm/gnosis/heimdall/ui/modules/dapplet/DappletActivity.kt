@@ -11,7 +11,6 @@ import kotlinx.android.synthetic.main.layout_transaction_dapplet.*
 import kotlinx.coroutines.rx2.await
 import org.json.JSONObject
 import pm.gnosis.heimdall.*
-import pm.gnosis.heimdall.data.remote.DappletServiceApi
 import pm.gnosis.heimdall.data.repositories.TransactionData
 import pm.gnosis.heimdall.data.repositories.TransactionExecutionRepository
 import pm.gnosis.heimdall.di.components.ViewComponent
@@ -26,13 +25,8 @@ import pm.gnosis.utils.hexStringToByteArray
 import java.math.BigInteger
 import javax.inject.Inject
 
-class DappletViewModel @Inject constructor(
-    private val dappletServiceApi: DappletServiceApi
-) : DappletContract() {
-
-    private val dapplet: JSONObject? = null
-
-    override fun createSafeTransaction(): TransactionData {
+class DappletViewModel @Inject constructor() : DappletContract() {
+    override fun createSafeTransaction(dappletJson: String, txMeta: JSONObject): TransactionData {
         val from = "0xf8808c9777c7fdcaeee6d9fa354eae41b5e1d13e"
         val to = "0xccf7930d9b1fa67d101e3de18de5416dc66bd852"
         val value = "0x00"
@@ -51,6 +45,9 @@ class DappletViewModel @Inject constructor(
 //                BuildConfig.PROXY_FACTORY_ADDRESS.asEthereumAddress()!!,
 //                Solidity.Bytes(setupData.hexStringToByteArray())
 //        )
+
+
+
         return TransactionData.Generic(
             to.asEthereumAddress()!!,
             BigInteger.ZERO,
@@ -59,43 +56,28 @@ class DappletViewModel @Inject constructor(
         )
     }
 
-    override fun getDapplet(id: String): Single<JSONObject> {
-        return Single.create({source ->
-            if (dapplet == null) {
-                dappletServiceApi.getDapplet(id).subscribe({ response ->
-                    source.onSuccess(JSONObject(response.string()))
-                })
-            } else {
-                source.onSuccess(dapplet)
+    override fun renderView(dappletJson: String, txMeta: JSONObject): String? {
+        val dapplet = JSONObject(dappletJson)
+        val views = dapplet.getJSONArray("views")
+
+        for (i in 0..(views.length() - 1) step 1) {
+            val view = views.getJSONObject(i)
+            if (view.getString("@type") != "view-plain-mustache") continue
+
+            var tpl = view.getString("template")
+            txMeta.keys().forEach {
+                tpl = tpl.replace("{{" + it + "}}", txMeta.getString(it))
             }
-        })
-    }
+            return tpl
+        }
 
-    override fun renderView(dappletId: String, txMeta: JSONObject): Single<String> {
-        return getDapplet(dappletId).map({
-            dapplet ->
-            val views = dapplet.getJSONArray("views")
-            var tpl = "Can not render the dapplet view"
-
-            for (i in 0..(views.length() - 1) step 1) {
-                val view = views.getJSONObject(i)
-                if (view.getString("@type") != "view-plain-mustache") continue
-
-                tpl = view.getString("template")
-                txMeta.keys().forEach {
-                    tpl = tpl.replace("{{" + it + "}}", txMeta.getString(it))
-                }
-            }
-
-            tpl
-        })
+        return null
     }
 }
 
 abstract class DappletContract : ViewModel() {
-    abstract fun createSafeTransaction(): TransactionData
-    abstract fun getDapplet(id: String): Single<JSONObject>
-    abstract fun renderView(dappletId: String, txMeta: JSONObject): Single<String>
+    abstract fun createSafeTransaction(dappletJson: String, txMeta: JSONObject): TransactionData
+    abstract fun renderView(dappletJson: String, txMeta: JSONObject): String?
 }
 
 class DappletActivity : ViewModelActivity<DappletContract>() {
@@ -113,14 +95,17 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val dapplet = intent.getStringExtra(EXTRA_DAPPLET)
+        val txMeta = JSONObject(intent.getStringExtra(EXTRA_TX_META))
         transaction_dapplet_back_arrow.setOnClickListener { onBackPressed() }
         transaction_dapplet_submit.setOnClickListener {
-            val txData = viewModel.createSafeTransaction()
+            val txData = viewModel.createSafeTransaction(dapplet, txMeta)
             val referenceId = intent.getLongExtra(EXTRA_REFERENCE_ID, 0)
             val sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
             startActivity(ReviewTransactionActivity.createIntent(this, safe, txData, referenceId, sessionId))
             finish()
         }
+        transaction_dapplet_description.setText(viewModel.renderView(dapplet, txMeta) ?: "Can not render the dapplet view")
     }
 
     override fun onStart() {
@@ -130,20 +115,9 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        val dappletId = intent.getStringExtra(EXTRA_DAPPLET_ID)
-        val txMeta = JSONObject(intent.getStringExtra(EXTRA_TX_META))
-        viewModel.renderView(dappletId, txMeta).subscribe({
-            view -> runOnUiThread {
-                transaction_dapplet_description.setText(view)
-            }
-        })
-    }
-
     companion object {
         private const val EXTRA_SAFE_ADDRESS = "extra.string.safe_address"
-        private const val EXTRA_DAPPLET_ID = "extra.string.dapplet_id"
+        private const val EXTRA_DAPPLET = "extra.string.dapplet"
         private const val EXTRA_TX_META = "extra.string.transaction_metadata"
         private const val EXTRA_REFERENCE_ID = "extra.long.reference_id"
         private const val EXTRA_SESSION_ID = "extra.string.session_id"
@@ -151,14 +125,14 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
         fun createIntent(
             context: Context,
             safe: Solidity.Address,
-            dappletId: String,
+            dapplet: String,
             txMeta: String,
             referenceId: Long? = null,
             sessionId: String? = null
         ) =
             Intent(context, DappletActivity::class.java).apply {
                 putExtra(EXTRA_SAFE_ADDRESS, safe.asEthereumAddressString())
-                putExtra(EXTRA_DAPPLET_ID, dappletId)
+                putExtra(EXTRA_DAPPLET, dapplet)
                 putExtra(EXTRA_TX_META, txMeta)
                 referenceId?.let { putExtra(EXTRA_REFERENCE_ID, it) }
                 putExtra(EXTRA_SESSION_ID, sessionId)
