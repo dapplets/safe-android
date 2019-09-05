@@ -29,6 +29,9 @@ import javax.inject.Inject
 class DappletViewModel @Inject constructor(
     private val dappletServiceApi: DappletServiceApi
 ) : DappletContract() {
+
+    private val dapplet: JSONObject? = null
+
     override fun createSafeTransaction(): TransactionData {
         val from = "0xf8808c9777c7fdcaeee6d9fa354eae41b5e1d13e"
         val to = "0xccf7930d9b1fa67d101e3de18de5416dc66bd852"
@@ -49,16 +52,42 @@ class DappletViewModel @Inject constructor(
 //                Solidity.Bytes(setupData.hexStringToByteArray())
 //        )
         return TransactionData.Generic(
-                to.asEthereumAddress()!!,
-                BigInteger.ZERO,
-                data,
-                TransactionExecutionRepository.Operation.DELEGATE_CALL
+            to.asEthereumAddress()!!,
+            BigInteger.ZERO,
+            data,
+            TransactionExecutionRepository.Operation.DELEGATE_CALL
         )
     }
 
     override fun getDapplet(id: String): Single<JSONObject> {
-        return dappletServiceApi.getDapplet(id).map({
-            response -> JSONObject(response.string())
+        return Single.create({source ->
+            if (dapplet == null) {
+                dappletServiceApi.getDapplet(id).subscribe({ response ->
+                    source.onSuccess(JSONObject(response.string()))
+                })
+            } else {
+                source.onSuccess(dapplet)
+            }
+        })
+    }
+
+    override fun renderView(dappletId: String, txMeta: JSONObject): Single<String> {
+        return getDapplet(dappletId).map({
+            dapplet ->
+            val views = dapplet.getJSONArray("views")
+            var tpl = "Can not render the dapplet view"
+
+            for (i in 0..(views.length() - 1) step 1) {
+                val view = views.getJSONObject(i)
+                if (view.getString("@type") != "view-plain-mustache") continue
+
+                tpl = view.getString("template")
+                txMeta.keys().forEach {
+                    tpl = tpl.replace("{{" + it + "}}", txMeta.getString(it))
+                }
+            }
+
+            tpl
         })
     }
 }
@@ -66,6 +95,7 @@ class DappletViewModel @Inject constructor(
 abstract class DappletContract : ViewModel() {
     abstract fun createSafeTransaction(): TransactionData
     abstract fun getDapplet(id: String): Single<JSONObject>
+    abstract fun renderView(dappletId: String, txMeta: JSONObject): Single<String>
 }
 
 class DappletActivity : ViewModelActivity<DappletContract>() {
@@ -91,12 +121,6 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
             startActivity(ReviewTransactionActivity.createIntent(this, safe, txData, referenceId, sessionId))
             finish()
         }
-
-        val dappletId = intent.getStringExtra(EXTRA_DAPPLET_ID)
-        viewModel.getDapplet(dappletId).subscribe({
-            dapplet ->
-                transaction_dapplet_description.setText(dapplet.toString())
-        })
     }
 
     override fun onStart() {
@@ -104,6 +128,17 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
         addressHelper.populateAddressInfo(transaction_dapplet_safe_address, transaction_dapplet_safe_name, transaction_dapplet_safe_image, safe).forEach {
             disposables += it
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val dappletId = intent.getStringExtra(EXTRA_DAPPLET_ID)
+        val txMeta = JSONObject(intent.getStringExtra(EXTRA_TX_META))
+        viewModel.renderView(dappletId, txMeta).subscribe({
+            view -> runOnUiThread {
+                transaction_dapplet_description.setText(view)
+            }
+        })
     }
 
     companion object {
