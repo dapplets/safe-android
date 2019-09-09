@@ -310,12 +310,12 @@ class WalletConnectBridgeRepository @Inject constructor(
     }
 
     private fun showSendDappletTransactionNotification(
-            peerMeta: Session.PeerMeta?,
-            safe: Solidity.Address,
-            dapplet: String,
-            txMeta: String,
-            referenceId: Long,
-            sessionId: String
+        peerMeta: Session.PeerMeta?,
+        safe: Solidity.Address,
+        dapplet: String,
+        txMeta: String,
+        referenceId: Long,
+        sessionId: String
     ) {
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val intent = DappletActivity.createIntent(context, safe, dapplet, txMeta, referenceId, sessionId)
@@ -332,7 +332,7 @@ class WalletConnectBridgeRepository @Inject constructor(
                 .setSubText(safe.shortChecksumString())
                 .setLargeIcon(icon)
                 .build()
-        localNotificationManager.show(
+            localNotificationManager.show(
                 referenceId.hashCode(),
                 notification
             )
@@ -342,122 +342,6 @@ class WalletConnectBridgeRepository @Inject constructor(
         }
     }
 
-    /*
-    private fun showSendDappletTransactionNotification2(
-            peerMeta: Session.PeerMeta?,
-            dappletId: String,
-            txMeta: JSONObject,
-            referenceId: Long,
-            sessionId: String
-    ) {
-        val dappletCall = dappletServiceApi.getDapplet(dappletId)
-            .subscribe ({
-                response ->
-                val json = response.string()
-                val result = JSONObject(json)
-                val context = result.getJSONObject("@context")
-                val views = result.getJSONArray("views")
-                val transactions = result.getJSONObject("transactions")
-
-                var renderedDapplet = "The dapplet doesn't contain compatible view.";
-
-                for (i in 0..(views.length() - 1) step 1) {
-                    val view = views.getJSONObject(i)
-                    if (view.getString("@type") != "view-plain-mustache") continue
-
-                    var tpl = view.getString("template")
-                    txMeta.keys().forEach {
-                        tpl = tpl.replace("{{" + it + "}}", txMeta.getString(it))
-                    }
-
-                    renderedDapplet = tpl
-                }
-
-                transactions.keys().forEach {
-                    val tx = transactions.getJSONObject(it)
-                    val txType = tx.getString("@type")
-                    val args = tx.getJSONArray("args")
-                    val fn = tx.getString("function")
-                    val types = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",")
-                    val values = mutableListOf<SolidityBase.Type>()
-
-                    for (i in 0..(args.length() - 1) step 1) {
-                        val arg = args.getString(i)
-                        val prop = arg.split(":")[0]
-                        var value = txMeta.getString(prop)
-                        val chain = arg.split(":")
-
-                        chain.forEach({
-                            fnName ->
-                            if (fnName != prop) {
-                                value = value; // ToDo
-                            }
-                        })
-
-//                        val type = Solidity.aliases.get(types[i]) ?: types[i]
-//                        val internalType = Solidity.types.get(type)
-//                        val kClass = Class.forName(internalType).kotlin
-//                        val ethValue = kClass.constructors.first().call(value) as SolidityBase.Type
-
-
-
-                        //values.add(ethValue)
-                    }
-
-                    //val data = SolidityBase.encodeTuple(values)
-
-
-                    val bytes = fn.commonAsUtf8ToByteArray()
-                    val hash = Sha3Utils.keccak(bytes).toHexString()
-                    val signature = hash.substring(0, 8)
-
-
-                    //val rawTx = RawTransaction.
-                    //org.web3j.crypto.
-
-//                    val data = SolidityBase.encodeFunctionArguments(
-//                        Solidity.UInt8(BigInteger.ZERO),
-//                        safeInfo.address,
-//                        Solidity.UInt256(BigInteger.ZERO),
-//                        Solidity.Bytes(it.hexStringToByteArray())
-//                    )
-
-                    val from = "0xf8808c9777c7fdcaeee6d9fa354eae41b5e1d13e"
-                    val to = "0xccf7930d9b1fa67d101e3de18de5416dc66bd852"
-                    val value = "0x00"
-                    val data = "0xc8d8a70e000000000000000000000000000000000000000000000000102084c61d16b0026c10c20ee6d68dd900f8e4affeb2d6af65de82d0ccab957205a3f26411573b57"
-
-                    Single.fromCallable {
-                        val safe = from.asEthereumAddress() ?: throw IllegalArgumentException("Invalid Safe address: $from")
-                        val txTo = to.asEthereumAddress() ?: throw IllegalArgumentException("Invalid to address: $to")
-                        val txValue = value.hexAsBigIntegerOrNull() ?: throw IllegalArgumentException("Invalid to value: $value")
-
-                        safe to SafeTransaction(
-                            Transaction(txTo, value = Wei(txValue), data = data),
-                            TransactionExecutionRepository.Operation.CALL
-                        )
-                    }
-                        .flatMap { (safe, tx) ->
-                            infoRepository.checkRestrictedTransaction(safe, tx)
-                                    .flatMap(infoRepository::parseTransactionData)
-                                    .map { txData -> safe to txData }
-                        }
-                        .subscribeBy(onError = { t ->
-                            val message = when (t) {
-                                is RestrictedTransactionException -> "This transaction is not allowed"
-                                else -> t.message ?: "Could not handle transaction"
-                            }
-                            rejectRequest(referenceId, 42, message).subscribe()
-                        }) { (safe, txData) ->
-                            showSendTransactionNotification(peerMeta, safe, txData, referenceId, sessionId)
-                        }
-                }
-            }, { error ->
-                error.printStackTrace()
-            })
-    }
-    */
-
     override fun createSession(url: String, safe: Solidity.Address): String =
         Session.Config.fromWCUri(url).let { config ->
             val sessionId = config.handshakeTopic
@@ -466,7 +350,6 @@ class WalletConnectBridgeRepository @Inject constructor(
             startBridgeService()
             sessionId
         }
-
 
     override fun observeSession(sessionId: String): Observable<BridgeRepository.SessionEvent> =
         sessionUpdates

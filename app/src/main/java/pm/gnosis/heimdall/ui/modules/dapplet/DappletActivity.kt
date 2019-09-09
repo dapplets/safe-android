@@ -9,7 +9,10 @@ import io.reactivex.Single
 import io.reactivex.rxkotlin.plusAssign
 import kotlinx.android.synthetic.main.layout_transaction_dapplet.*
 import kotlinx.coroutines.rx2.await
+import okio.internal.commonAsUtf8ToByteArray
+import org.json.JSONArray
 import org.json.JSONObject
+import pm.gnosis.crypto.utils.Sha3Utils
 import pm.gnosis.heimdall.*
 import pm.gnosis.heimdall.data.repositories.TransactionData
 import pm.gnosis.heimdall.data.repositories.TransactionExecutionRepository
@@ -19,34 +22,102 @@ import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.transactions.view.review.ReviewTransactionActivity
 import pm.gnosis.model.Solidity
+import pm.gnosis.model.SolidityBase
 import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.asEthereumAddressString
 import pm.gnosis.utils.hexStringToByteArray
+import pm.gnosis.utils.toHexString
 import java.math.BigInteger
+import java.security.MessageDigest
 import javax.inject.Inject
 
+class DappletFormatters {
+    companion object {
+        private fun bigNumberify(input: ByteArray): ByteArray {
+            return input
+        }
+
+        private fun toUtf8Bytes(input: ByteArray): ByteArray {
+            return input
+        }
+
+        private fun sha256(input: ByteArray): ByteArray {
+            return MessageDigest.getInstance("SHA-256").digest(input)
+        }
+
+        fun formatChain(input: ByteArray, formatters: Array<String>): ByteArray {
+            var output = input
+
+            for (formatter in formatters) {
+                output = when (formatter) {
+                    "bigNumberify" -> bigNumberify(output)
+                    "toUtf8Bytes" -> toUtf8Bytes(output)
+                    "sha256" -> sha256(output)
+                    else -> throw Error("Incompatible formatter")
+                }
+            }
+
+            return output
+        }
+    }
+}
+
 class DappletViewModel @Inject constructor() : DappletContract() {
-    override fun createSafeTransaction(dappletJson: String, txMeta: JSONObject): TransactionData {
-        val from = "0xf8808c9777c7fdcaeee6d9fa354eae41b5e1d13e"
-        val to = "0xccf7930d9b1fa67d101e3de18de5416dc66bd852"
-        val value = "0x00"
-        val data = "0xc8d8a70e000000000000000000000000000000000000000000000000102084c61d16b0026c10c20ee6d68dd900f8e4affeb2d6af65de82d0ccab957205a3f26411573b57"
+    private fun encode(type: String, value: ByteArray): String {
+        val normalizedType = Solidity.aliases.get(type) ?: type
 
-//        val initData = SimpleRecoveryModule.Setup.encode(
-//                recoverer,
-//                Solidity.UInt256(delay.toBigInteger())
-//        )
-//        val proxyData = ProxyFactory.CreateProxy.encode(
-//                BuildConfig.SIMPLE_RECOVERY_MODULE_MASTER_COPY_ADDRESS.asEthereumAddress()!!,
-//                Solidity.Bytes(initData.hexStringToByteArray())
-//        )
-//        val setupData = Solidity.Bytes(proxyData.hexStringToByteArray()).encode()
-//        val data = CreateAndAddModules.CreateAndAddModules.encode(
-//                BuildConfig.PROXY_FACTORY_ADDRESS.asEthereumAddress()!!,
-//                Solidity.Bytes(setupData.hexStringToByteArray())
-//        )
+        val size = when (normalizedType) {
+            "address" -> 40 // 160 bits
+            "bool" -> 1
+            "bytes" -> throw Error("Dynamic types are incompatible")
+            "string" -> throw Error("Dynamic types are incompatible")
+            else -> {
+                if (normalizedType.contains("uint") || normalizedType.contains("int")) {
+                    normalizedType.replace("uint", "").replace("int", "").toInt().div(4)
+                } else if (normalizedType.contains("bytes")) {
+                    normalizedType.replace("bytes", "").toInt()
+                } else {
+                    throw Error("Incompatible type")
+                }
+            }
+        }
 
+        val hex = value.toHexString().padStart(size, '0')
 
+        return hex
+    }
+
+    override fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject): TransactionData {
+        val txs = dapplet.getJSONObject("transactions")
+        val txName = txs.keys().next()
+        val tx = txs.getJSONObject(txName)
+        val txType = tx.getString("@type")
+        val to = tx.getString("to")
+        val args = tx.getJSONArray("args")
+        val fn = tx.getString("function")
+        val types = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",").toTypedArray()
+
+        var data = "0x"
+
+        // signature calculation
+        val bytes = fn.commonAsUtf8ToByteArray()
+        val hash = Sha3Utils.keccak(bytes).toHexString()
+        val signature = hash.substring(0, 8)
+        data += signature
+
+        // params encoding
+        val binaryTxMeta = jsonToBinaryMap(txMeta)
+        for (i in 0..(args.length() - 1) step 1) {
+            val arg = args.getString(i)
+            val prop = arg.split(":")[0]
+            var value = binaryTxMeta.get(prop) ?: throw Error("Invalid value")
+            val formattersChain = arg.split(":").drop(1).toTypedArray()
+            val formattedValue = DappletFormatters.formatChain(value, formattersChain)
+
+            val type = types[i]
+            val encoded = encode(type, formattedValue)
+            data += encoded
+        }
 
         return TransactionData.Generic(
             to.asEthereumAddress()!!,
@@ -56,8 +127,28 @@ class DappletViewModel @Inject constructor() : DappletContract() {
         )
     }
 
-    override fun renderView(dappletJson: String, txMeta: JSONObject): String? {
-        val dapplet = JSONObject(dappletJson)
+    private fun jsonToBinaryMap(json: JSONObject): Map<String, ByteArray> {
+        val map = mutableMapOf<String, ByteArray>()
+        val keys = json.keys()
+
+        while (keys.hasNext()) {
+            val key = keys.next()
+            val value = json.get(key)
+
+            val binary: ByteArray = when (value) {
+                is String -> value.commonAsUtf8ToByteArray()
+                is Int -> value.toBigInteger().toByteArray()
+                is Long -> value.toBigInteger().toByteArray()
+                else -> throw Error("Invalid type")
+            }
+
+            map.put(key, binary)
+        }
+
+        return map
+    }
+
+    override fun renderView(dapplet: JSONObject, txMeta: JSONObject): String? {
         val views = dapplet.getJSONArray("views")
 
         for (i in 0..(views.length() - 1) step 1) {
@@ -66,7 +157,7 @@ class DappletViewModel @Inject constructor() : DappletContract() {
 
             var tpl = view.getString("template")
             txMeta.keys().forEach {
-                tpl = tpl.replace("{{" + it + "}}", txMeta.getString(it))
+                tpl = tpl.replace("{{" + it + "}}", txMeta.get(it).toString())
             }
             return tpl
         }
@@ -76,8 +167,8 @@ class DappletViewModel @Inject constructor() : DappletContract() {
 }
 
 abstract class DappletContract : ViewModel() {
-    abstract fun createSafeTransaction(dappletJson: String, txMeta: JSONObject): TransactionData
-    abstract fun renderView(dappletJson: String, txMeta: JSONObject): String?
+    abstract fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject): TransactionData
+    abstract fun renderView(dapplet: JSONObject, txMeta: JSONObject): String?
 }
 
 class DappletActivity : ViewModelActivity<DappletContract>() {
@@ -95,7 +186,7 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val dapplet = intent.getStringExtra(EXTRA_DAPPLET)
+        val dapplet = JSONObject(intent.getStringExtra(EXTRA_DAPPLET))
         val txMeta = JSONObject(intent.getStringExtra(EXTRA_TX_META))
         transaction_dapplet_back_arrow.setOnClickListener { onBackPressed() }
         transaction_dapplet_submit.setOnClickListener {
