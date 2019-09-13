@@ -79,7 +79,7 @@ enum class ScreenId {
     WELCOME_TERMS,
 
     DIALOG_SHARE_ADDRESS,
-    TRANSACTION_DAPPLET
+    TRANSACTION_DAPPLET // DPL11 ID of Dapplet Activity
 }
 
 enum class ButtonId

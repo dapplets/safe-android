@@ -41,6 +41,7 @@ android {
         buildConfigField javaTypes.STRING, "BLOCKCHAIN_NET_URL", asString(getKey("BLOCKCHAIN_NET_URL", "https://rinkeby.infura.io/v3/"))
         buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.rinkeby.gnosis.pm/api/"))
         buildConfigField javaTypes.STRING, "NOTIFICATION_SERVICE_URL", asString(getKey("NOTIFICATION_SERVICE_URL", "https://safe-notification.gnosis.pm/api/"))
+        // DPL04 Here and below dapplet constants were added
         buildConfigField javaTypes.STRING, "DAPPLET_SERVICE_URL", asString(getKey("DAPPLET_SERVICE_URL", "https://dapplets.github.io/dapplet-examples/"))
         // Blockchain settings
         buildConfigField javaTypes.LONG, "BLOCKCHAIN_CHAIN_ID", getKey("BLOCKCHAIN_CHAIN_ID", "4")
@@ -280,7 +281,6 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$versions.kotlinx_coroutines"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$versions.kotlinx_coroutines"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:$versions.kotlinx_coroutines"
-    implementation "org.jetbrains.kotlin:kotlin-reflect:$versions.kotlin"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.androidx_lifecycle"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$versions.androidx_lifecycle"
     implementation "androidx.room:room-ktx:$versions.androidx_room"
@@ -307,7 +307,6 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$versions.androidx_test_ext"
 
     androidTestImplementation "android.arch.persistence.room:testing:$versions.androidx_room"
-    implementation 'org.web3j:crypto:3.1.1-android'
 
 }
 

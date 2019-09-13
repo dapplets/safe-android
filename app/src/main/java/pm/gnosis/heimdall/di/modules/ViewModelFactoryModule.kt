@@ -150,10 +150,11 @@ abstract class ViewModelFactoryModule {
     @ViewModelKey(GeneralSettingsContract::class)
     abstract fun bindsGeneralSettingsContract(viewModel: GeneralSettingsViewModel): ViewModel
 
+    // DPL09 Another boilerplate... x_x
     @Binds
     @IntoMap
     @ViewModelKey(DappletContract::class)
-    abstract fun bindsLocationRecoveryContract(viewModel: DappletViewModel): ViewModel
+    abstract fun bindsDappletContract(viewModel: DappletViewModel): ViewModel
 
     @Binds
     @IntoMap

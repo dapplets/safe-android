@@ -317,6 +317,7 @@ class WalletConnectBridgeRepository @Inject constructor(
         }
     }
 
+    // DPL06 Added function for displaying of dapplet activity
     private fun showSendDappletTransactionNotification(
         peerMeta: Session.PeerMeta?,
         safe: Solidity.Address,

@@ -4,7 +4,6 @@ package pm.gnosis.heimdall.ui.transactions.view.review
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.TextView
 import androidx.core.widget.NestedScrollView
 import com.jakewharton.rxbinding2.view.clicks
 import com.squareup.picasso.Callback
@@ -21,7 +20,6 @@ import pm.gnosis.heimdall.di.components.ViewComponent
 import pm.gnosis.heimdall.helpers.ToolbarHelper
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
-import pm.gnosis.heimdall.ui.safe.main.SafeMainActivity
 import pm.gnosis.heimdall.ui.security.unlock.UnlockDialog
 import pm.gnosis.heimdall.ui.transactions.TransactionSubmissionConfirmationDialog
 import pm.gnosis.heimdall.ui.transactions.view.TransactionInfoViewHolder
@@ -37,7 +35,6 @@ import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.toHexString
 import timber.log.Timber
 import javax.inject.Inject
-import kotlin.math.log
 
 class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>(), UnlockDialog.UnlockCallback {
 
@@ -207,7 +204,6 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
                 putExtras(Bundle().apply {
                     txData.addToBundle(this)
                 })
-
             }
     }
 }

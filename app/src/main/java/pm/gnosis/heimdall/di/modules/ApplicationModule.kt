@@ -189,6 +189,7 @@ class ApplicationModule(private val application: Application) {
             .build()
             .create(RelayServiceApi::class.java)
 
+    // DPL08 Added new HTTP API wrapper (dapplet loading from github)
     @Provides
     @Singleton
     fun providesDappletServiceApi(moshi: Moshi, client: OkHttpClient): DappletServiceApi =

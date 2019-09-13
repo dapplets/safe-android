@@ -280,6 +280,7 @@
             android:screenOrientation="portrait"
             android:theme="@style/GreyBackgroundTheme" />
 
+        <!-- DPL05 Register new activity -->
         <activity android:name=".ui.modules.dapplet.DappletActivity" />
 
         <service android:name=".services.HeimdallFirebaseService">

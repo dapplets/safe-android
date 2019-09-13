@@ -118,6 +118,7 @@ class ViewModule(val context: Context) {
     @ForView
     fun providesGeneralSettingsContract(provider: ViewModelProvider) = provider[GeneralSettingsContract::class.java]
 
+    // DPL10 Again boilerplate... x_x
     @Provides
     @ForView
     fun providesDappletContract(provider: ViewModelProvider) = provider[DappletContract::class.java]

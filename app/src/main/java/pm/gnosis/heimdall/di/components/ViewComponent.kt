@@ -99,6 +99,7 @@ interface ViewComponent {
     fun inject(activity: CreateSafeConfirmRecoveryPhraseActivity)
     fun inject(activity: CreateSafePaymentTokenActivity)
     fun inject(activity: CreateSafeSetupRecoveryPhraseActivity)
+    // DPL07 Added new injectable activity
     fun inject(activity: DappletActivity)
     fun inject(activity: DebugSettingsActivity)
     fun inject(activity: FingerprintSetupActivity)

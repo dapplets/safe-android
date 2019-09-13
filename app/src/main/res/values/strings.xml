@@ -480,5 +480,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="balance">Balance</string>
     <string name="change_fee_method">Change fee payment method</string>
     <string name="pay_with">Pay with %s</string>
+    <!-- DPL12 Resources for Dapplet Activity -->
     <string name="notification_new_transaction_dapplet_request">New dapplet request to review</string>
+    <string name="review_dapplet_transaction">Review Dapplet Transaction</string>
 </resources>
