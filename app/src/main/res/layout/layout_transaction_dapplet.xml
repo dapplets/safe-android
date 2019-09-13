@@ -117,22 +117,19 @@
                     app:barrierDirection="bottom"
                     app:constraint_referenced_ids="transaction_dapplet_action,transaction_dapplet_divider,transaction_dapplet_arrow" />
 
-                <TextView
-                    android:id="@+id/transaction_dapplet_description"
-                    android:layout_width="0dp"
+                <pm.gnosis.heimdall.ui.modules.dapplet.DappletView
+                    android:id="@+id/transaction_dapplet_view"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:lineSpacingExtra="3sp"
-                    android:text="Loading..."
-                    android:textColor="@color/blue"
-                    android:textSize="15sp"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_description_barrier" />
+                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_description_barrier"
+                    />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
         </androidx.core.widget.NestedScrollView>
+
 
         <View
             android:id="@+id/transaction_dapplet_toolbar_background"

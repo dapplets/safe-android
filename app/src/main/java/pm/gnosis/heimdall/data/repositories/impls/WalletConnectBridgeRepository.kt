@@ -8,12 +8,10 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
-import android.util.Log
-import android.util.Log.*
+import android.os.Parcelable
 import androidx.core.os.BuildCompat
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
-import com.squareup.moshi.JsonWriter
 import com.squareup.picasso.Picasso
 import io.reactivex.Completable
 import io.reactivex.Observable
@@ -21,21 +19,14 @@ import io.reactivex.Single
 import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.BehaviorSubject
-import kotlinx.coroutines.rx2.await
-import okio.internal.commonAsUtf8ToByteArray
+import org.json.JSONArray
 import org.json.JSONObject
-import org.kethereum.functions.rlp.encode
 import org.walletconnect.Session
 import org.walletconnect.impls.WCSession
 import org.walletconnect.impls.WCSessionStore
 import org.walletconnect.nullOnThrow
-import org.web3j.crypto.RawTransaction
-import pm.gnosis.crypto.utils.HashUtils
-import pm.gnosis.crypto.utils.Sha3Utils
-import pm.gnosis.ethereum.EthSendRawTransaction
 import pm.gnosis.ethereum.rpc.models.JsonRpcError
 import pm.gnosis.heimdall.BuildConfig
-import pm.gnosis.heimdall.MultiSend
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.preferences.PreferencesWalletConnect
 import pm.gnosis.heimdall.data.remote.DappletServiceApi
@@ -48,14 +39,13 @@ import pm.gnosis.heimdall.ui.modules.dapplet.DappletActivity
 import pm.gnosis.heimdall.ui.transactions.view.review.ReviewTransactionActivity
 import pm.gnosis.heimdall.utils.shortChecksumString
 import pm.gnosis.model.Solidity
-import pm.gnosis.model.SolidityBase
 import pm.gnosis.models.Transaction
 import pm.gnosis.models.Wei
 import pm.gnosis.utils.*
 import retrofit2.http.Body
 import retrofit2.http.POST
 import timber.log.Timber
-import java.math.BigInteger
+import java.io.Serializable
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -69,7 +59,7 @@ class WalletConnectBridgeRepository @Inject constructor(
     private val sessionStore: WCSessionStore,
     private val sessionBuilder: SessionBuilder,
     private val prefs: PreferencesWalletConnect,
-    private val dappletServiceApi: DappletServiceApi,
+    private val dappletServiceApi: DappletServiceApi, // DPL03 DI Injection of the API wrapper (loading of dapplet json from github.io)
     executionRepository: TransactionExecutionRepository
 ) : BridgeRepository, TransactionExecutionRepository.TransactionEventsCallback {
 
@@ -213,19 +203,37 @@ class WalletConnectBridgeRepository @Inject constructor(
                             call.apply {
                                 sessionRequests[id] = sessionId
                                 try {
-                                    if (method == "wallet_checkDappletCompatibility") {
+                                    // DPL01 Processing of Custom Requests
+                                    if (method == "wallet_checkDappletFramesCompatibility") {
                                         approveRequest(id, true).subscribe()
                                         return
-                                    } else if (method == "wallet_loadDapplet") {
-                                        val data = (params as List<Any>)
-                                        val safe = "0x84bf358e71F3c033d3B4F7cE2eF56A7Ff14c76A4" //(data.first() as String)
+                                    } else if (method == "wallet_loadDappletFrames") {
+                                        val dappletFramesRaw = (params as List<List<Any>>)
+                                        val safe = session.approvedAccounts()?.first() ?: throw Error("Wallet is not found") // ToDo: get to-address from a dapplet
                                         if (session.approvedAccounts()?.contains(safe.toLowerCase()) != true)
                                             throw IllegalArgumentException("Invalid Safe address: $safe")
-                                        val dappletId = data[0] as String
-                                        val txMeta = JSONObject(data[1] as Map<String, Any>).toString()
-                                        dappletServiceApi.getDapplet(dappletId).subscribe({ response ->
-                                            showSendDappletTransactionNotification(session.peerMeta(), safe.asEthereumAddress()!!, response.string(), txMeta, id, sessionId)
-                                        })
+
+                                        // Loaded Dapplets and its metadata
+                                        val dappletRequest = DappletRequest()
+
+                                        for (callRaw in dappletFramesRaw) {
+                                            val dappletId = callRaw[0] as String
+                                            val txMeta = if (callRaw.count() > 1) JSONObject(callRaw[1] as? Map<String, Any>) else null
+                                            dappletRequest.frames.add(DappletFrame(dappletId, txMeta, null))
+
+                                            dappletServiceApi.getDapplet(dappletId).subscribe({
+                                                response ->
+                                                    val dapplet = JSONObject(response.string())
+                                                    dappletRequest.frames.find({d -> d.dappletId == dappletId})!!.dapplet = dapplet
+
+                                                    // ToDo: Utilize RxJava to wait all async requests (like Promise.all in JavaScript)
+                                                    val isAllDappletsLoaded = dappletRequest.frames.filter({d -> d.dapplet == null}).count() == 0
+                                                    if (isAllDappletsLoaded) {
+                                                        showSendDappletTransactionNotification(session.peerMeta(), safe.asEthereumAddress()!!, dappletRequest, id, sessionId)
+                                                    }
+                                            })
+                                        }
+
                                         return
                                     }
 
@@ -312,13 +320,12 @@ class WalletConnectBridgeRepository @Inject constructor(
     private fun showSendDappletTransactionNotification(
         peerMeta: Session.PeerMeta?,
         safe: Solidity.Address,
-        dapplet: String,
-        txMeta: String,
+        dappletRequest: DappletRequest,
         referenceId: Long,
         sessionId: String
     ) {
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-        val intent = DappletActivity.createIntent(context, safe, dapplet, txMeta, referenceId, sessionId)
+        val intent = DappletActivity.createIntent(context, safe, dappletRequest, referenceId, sessionId)
         // Pre Android Q we will directly show the review activity if the phone is unlocked, else we show a notification
         // TODO: Adjust check when Q is released
         if (BuildCompat.isAtLeastQ() || Build.VERSION.SDK_INT > Build.VERSION_CODES.P || keyguard.isKeyguardLocked) {
@@ -528,4 +535,52 @@ interface RpcProxyApi {
         @Json(name = "error") val error: JsonRpcError? = null,
         @Json(name = "result") val result: Any?
     )
+}
+
+// DPL02 Dapplet types
+data class DappletFrame(
+    var dappletId: String,
+    var txMeta: JSONObject?,
+    var dapplet: JSONObject?
+)
+
+class DappletRequest {
+    var frames: MutableList<DappletFrame> = mutableListOf<DappletFrame>()
+
+    fun toJson(): String {
+        val json = JSONObject()
+        val framesArray = JSONArray()
+
+        for (frame in frames) {
+            val frameJson = JSONObject()
+            frameJson.put("dappletId", frame.dappletId)
+            frameJson.put("txMeta", frame.txMeta)
+            frameJson.put("dapplet", frame.dapplet)
+            framesArray.put(frameJson)
+        }
+
+        json.put("frames", framesArray)
+
+        return json.toString()
+    }
+
+    companion object {
+        fun fromJson(jsonString: String): DappletRequest {
+            val request = DappletRequest()
+
+            val json = JSONObject(jsonString)
+            val framesJson = json.getJSONArray("frames")
+
+            for (i in 0..(framesJson.length() - 1) step 1) {
+                val frameJson = framesJson.getJSONObject(i)
+                request.frames.add(DappletFrame(
+                        frameJson.getString("dappletId"),
+                        if (frameJson.isNull("txMeta")) null else frameJson.getJSONObject("txMeta"),
+                        if (frameJson.isNull("dapplet")) null else frameJson.getJSONObject("dapplet")
+                ))
+            }
+
+            return request
+        }
+    }
 }

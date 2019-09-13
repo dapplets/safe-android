@@ -4,13 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.lifecycle.ViewModel
-import com.google.android.gms.tasks.Tasks.await
-import io.reactivex.Single
 import io.reactivex.rxkotlin.plusAssign
 import kotlinx.android.synthetic.main.layout_transaction_dapplet.*
-import kotlinx.coroutines.rx2.await
 import okio.internal.commonAsUtf8ToByteArray
-import org.json.JSONArray
 import org.json.JSONObject
 import pm.gnosis.crypto.utils.Sha3Utils
 import pm.gnosis.heimdall.*
@@ -22,14 +18,14 @@ import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.transactions.view.review.ReviewTransactionActivity
 import pm.gnosis.model.Solidity
-import pm.gnosis.model.SolidityBase
 import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.asEthereumAddressString
-import pm.gnosis.utils.hexStringToByteArray
 import pm.gnosis.utils.toHexString
 import java.math.BigInteger
 import java.security.MessageDigest
 import javax.inject.Inject
+import pm.gnosis.heimdall.data.repositories.impls.DappletRequest
+
 
 class DappletFormatters {
     companion object {
@@ -87,11 +83,10 @@ class DappletViewModel @Inject constructor() : DappletContract() {
         return hex
     }
 
-    override fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject): TransactionData {
+    override fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject?): TransactionData {
         val txs = dapplet.getJSONObject("transactions")
         val txName = txs.keys().next()
         val tx = txs.getJSONObject(txName)
-        val txType = tx.getString("@type")
         val to = tx.getString("to")
         val args = tx.getJSONArray("args")
         val fn = tx.getString("function")
@@ -127,48 +122,32 @@ class DappletViewModel @Inject constructor() : DappletContract() {
         )
     }
 
-    private fun jsonToBinaryMap(json: JSONObject): Map<String, ByteArray> {
+    private fun jsonToBinaryMap(json: JSONObject?): Map<String, ByteArray> {
         val map = mutableMapOf<String, ByteArray>()
-        val keys = json.keys()
+        if (json != null) {
+            val keys = json.keys()
 
-        while (keys.hasNext()) {
-            val key = keys.next()
-            val value = json.get(key)
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = json.get(key)
 
-            val binary: ByteArray = when (value) {
-                is String -> value.commonAsUtf8ToByteArray()
-                is Int -> value.toBigInteger().toByteArray()
-                is Long -> value.toBigInteger().toByteArray()
-                else -> throw Error("Invalid type")
+                val binary: ByteArray = when (value) {
+                    is String -> value.commonAsUtf8ToByteArray()
+                    is Int -> value.toBigInteger().toByteArray()
+                    is Long -> value.toBigInteger().toByteArray()
+                    else -> throw Error("Invalid type")
+                }
+
+                map.put(key, binary)
             }
-
-            map.put(key, binary)
         }
 
         return map
     }
-
-    override fun renderView(dapplet: JSONObject, txMeta: JSONObject): String? {
-        val views = dapplet.getJSONArray("views")
-
-        for (i in 0..(views.length() - 1) step 1) {
-            val view = views.getJSONObject(i)
-            if (view.getString("@type") != "view-plain-mustache") continue
-
-            var tpl = view.getString("template")
-            txMeta.keys().forEach {
-                tpl = tpl.replace("{{" + it + "}}", txMeta.get(it).toString())
-            }
-            return tpl
-        }
-
-        return null
-    }
 }
 
 abstract class DappletContract : ViewModel() {
-    abstract fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject): TransactionData
-    abstract fun renderView(dapplet: JSONObject, txMeta: JSONObject): String?
+    abstract fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject?): TransactionData
 }
 
 class DappletActivity : ViewModelActivity<DappletContract>() {
@@ -186,17 +165,19 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val dapplet = JSONObject(intent.getStringExtra(EXTRA_DAPPLET))
-        val txMeta = JSONObject(intent.getStringExtra(EXTRA_TX_META))
+
+        val dappletRequest = DappletRequest.fromJson(intent.getStringExtra(EXTRA_DAPPLET_REQUEST))
         transaction_dapplet_back_arrow.setOnClickListener { onBackPressed() }
         transaction_dapplet_submit.setOnClickListener {
-            val txData = viewModel.createSafeTransaction(dapplet, txMeta)
+            val firstFrame = dappletRequest.frames.first()
+            val txData = viewModel.createSafeTransaction(firstFrame.dapplet!!, firstFrame.txMeta)
             val referenceId = intent.getLongExtra(EXTRA_REFERENCE_ID, 0)
             val sessionId = intent.getStringExtra(EXTRA_SESSION_ID)
             startActivity(ReviewTransactionActivity.createIntent(this, safe, txData, referenceId, sessionId))
             finish()
         }
-        transaction_dapplet_description.setText(viewModel.renderView(dapplet, txMeta) ?: "Can not render the dapplet view")
+
+        transaction_dapplet_view.setDappletRequest(dappletRequest)
     }
 
     override fun onStart() {
@@ -208,25 +189,22 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
 
     companion object {
         private const val EXTRA_SAFE_ADDRESS = "extra.string.safe_address"
-        private const val EXTRA_DAPPLET = "extra.string.dapplet"
-        private const val EXTRA_TX_META = "extra.string.transaction_metadata"
+        private const val EXTRA_DAPPLET_REQUEST = "extra.string.dapplet_request"
         private const val EXTRA_REFERENCE_ID = "extra.long.reference_id"
         private const val EXTRA_SESSION_ID = "extra.string.session_id"
 
         fun createIntent(
             context: Context,
             safe: Solidity.Address,
-            dapplet: String,
-            txMeta: String,
+            dappletRequest: DappletRequest,
             referenceId: Long? = null,
             sessionId: String? = null
         ) =
             Intent(context, DappletActivity::class.java).apply {
                 putExtra(EXTRA_SAFE_ADDRESS, safe.asEthereumAddressString())
-                putExtra(EXTRA_DAPPLET, dapplet)
-                putExtra(EXTRA_TX_META, txMeta)
                 referenceId?.let { putExtra(EXTRA_REFERENCE_ID, it) }
                 putExtra(EXTRA_SESSION_ID, sessionId)
+                putExtra(EXTRA_DAPPLET_REQUEST, dappletRequest.toJson())
             }
     }
 }
