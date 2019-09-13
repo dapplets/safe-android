@@ -547,6 +547,7 @@ data class DappletFrame(
 class DappletRequest {
     var frames: MutableList<DappletFrame> = mutableListOf<DappletFrame>()
 
+    // ToDo: fix this dirty hack
     fun toJson(): String {
         val json = JSONObject()
         val framesArray = JSONArray()
@@ -565,6 +566,7 @@ class DappletRequest {
     }
 
     companion object {
+        // ToDo: fix this dirty hack
         fun fromJson(jsonString: String): DappletRequest {
             val request = DappletRequest()
 
