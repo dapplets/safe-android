@@ -14,6 +14,7 @@
         <androidx.core.widget.NestedScrollView
             android:layout_width="0dp"
             android:layout_height="0dp"
+            android:background="#F8F8F8"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintBottom_toTopOf="@+id/transaction_dapplet_submit"
             app:layout_constraintEnd_toEndOf="parent"
@@ -23,9 +24,10 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="16dp"
-                android:layout_marginStart="16dp"
-                android:layout_marginTop="24dp">
+                android:clipToPadding="false"
+                android:paddingStart="16dp"
+                android:paddingTop="24dp"
+                android:paddingEnd="16dp">
 
                 <pm.gnosis.blockies.BlockiesImageView
                     android:id="@+id/transaction_dapplet_safe_image"
@@ -40,8 +42,8 @@
                     style="@style/DarkText"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
                     android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
                     android:ellipsize="end"
                     android:maxLines="1"
                     app:layout_constraintBottom_toTopOf="@+id/transaction_dapplet_safe_address"
@@ -55,10 +57,12 @@
                     style="@style/LightText"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
                     android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
                     android:ellipsize="end"
                     android:maxLines="1"
+                    android:textAppearance="@style/LightText"
+                    android:textColor="#5F5F5F"
                     app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_safe_image"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/transaction_dapplet_safe_image"
@@ -71,8 +75,8 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
                     android:maxLines="1"
-                    android:paddingBottom="16dp"
                     android:paddingTop="16dp"
+                    android:paddingBottom="16dp"
                     android:textColor="@color/blue"
                     android:textSize="13sp"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -100,8 +104,8 @@
                     android:id="@+id/transaction_dapplet_divider"
                     android:layout_width="0dp"
                     android:layout_height="1dp"
-                    android:layout_marginEnd="8dp"
                     android:layout_marginStart="16dp"
+                    android:layout_marginEnd="8dp"
                     android:background="@color/divider"
                     app:layout_constraintBottom_toBottomOf="@+id/transaction_dapplet_action"
                     app:layout_constraintEnd_toStartOf="@+id/transaction_dapplet_action"
@@ -120,10 +124,10 @@
                     android:id="@+id/transaction_dapplet_view"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:clipToPadding="false"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_description_barrier"
-                    />
+                    app:layout_constraintTop_toBottomOf="@+id/transaction_dapplet_description_barrier" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 

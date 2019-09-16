@@ -116,7 +116,7 @@ class DappletViewModel @Inject constructor() : DappletContract() {
 
         return TransactionData.Generic(
             to.asEthereumAddress()!!,
-            BigInteger.ZERO,
+            BigInteger.ZERO, // ToDo: get value from dapplet
             data,
             TransactionExecutionRepository.Operation.DELEGATE_CALL
         )
