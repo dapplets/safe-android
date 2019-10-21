@@ -16,6 +16,10 @@
         android:title="@string/wallet_connect"
         app:showAsAction="never" />
     <item
+        android:id="@+id/safe_details_menu_scan_dapplet"
+        android:title="Scan Dapplet Transaction"
+        app:showAsAction="never" />
+    <item
         android:id="@+id/safe_details_menu_connect"
         android:title="@string/connect_browser_extension"
         android:visible="false"

@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.text.SpannableStringBuilder
 import android.text.style.ForegroundColorSpan
+import android.util.Log
 import android.view.View
 import androidx.appcompat.widget.PopupMenu
 import androidx.core.view.GravityCompat
@@ -18,19 +19,30 @@ import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.subjects.BehaviorSubject
 import kotlinx.android.synthetic.main.dialog_content_edit_name.view.*
 import kotlinx.android.synthetic.main.layout_safe_main.*
+import kotlinx.android.synthetic.main.layout_wallet_connect_sessions.*
+import org.json.JSONArray
+import org.json.JSONObject
+import org.walletconnect.Session
 import pm.gnosis.heimdall.BuildConfig
 import pm.gnosis.heimdall.R
+import pm.gnosis.heimdall.data.remote.DappletServiceApi
+import pm.gnosis.heimdall.data.repositories.impls.DappletFrame
+import pm.gnosis.heimdall.data.repositories.impls.DappletRequest
+import pm.gnosis.heimdall.data.repositories.impls.SessionBuilder
 import pm.gnosis.heimdall.data.repositories.models.AbstractSafe
 import pm.gnosis.heimdall.data.repositories.models.PendingSafe
 import pm.gnosis.heimdall.data.repositories.models.RecoveringSafe
 import pm.gnosis.heimdall.data.repositories.models.Safe
 import pm.gnosis.heimdall.di.components.ViewComponent
+import pm.gnosis.heimdall.di.modules.ApplicationModule_ProvidesDappletServiceApiFactory
 import pm.gnosis.heimdall.reporting.Event
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.addressbook.list.AddressBookActivity
 import pm.gnosis.heimdall.ui.base.Adapter
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsActivity
+import pm.gnosis.heimdall.ui.modules.dapplet.DappletActivity
+import pm.gnosis.heimdall.ui.qrscan.QRCodeScanActivity
 import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeIntroActivity
 import pm.gnosis.heimdall.ui.safe.details.SafeDetailsFragment
@@ -49,6 +61,7 @@ import pm.gnosis.heimdall.ui.walletconnect.intro.WalletConnectIntroActivity
 import pm.gnosis.heimdall.ui.walletconnect.sessions.WalletConnectSessionsActivity
 import pm.gnosis.heimdall.utils.CustomAlertDialogBuilder
 import pm.gnosis.heimdall.utils.errorSnackbar
+import pm.gnosis.heimdall.utils.handleQrCodeActivityResult
 import pm.gnosis.heimdall.utils.setCompoundDrawableResource
 import pm.gnosis.model.Solidity
 import pm.gnosis.svalinn.common.utils.*
@@ -57,7 +70,7 @@ import pm.gnosis.utils.asEthereumAddressString
 import timber.log.Timber
 import javax.inject.Inject
 
-class SafeMainActivity : ViewModelActivity<SafeMainContract>() {
+class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
 
     @Inject
     lateinit var adapter: SafeAdapter
@@ -365,6 +378,9 @@ class SafeMainActivity : ViewModelActivity<SafeMainContract>() {
                                 )
                             }
                     }
+                    R.id.safe_details_menu_scan_dapplet -> selectedSafe?.let { safe ->
+                        QRCodeScanActivity.startForResult(this)
+                    }
                     R.id.safe_details_menu_sync -> selectedSafe?.let { safe ->
                         disposables += viewModel.syncWithChromeExtension(safe.address())
                             .observeOn(AndroidSchedulers.mainThread())
@@ -391,6 +407,40 @@ class SafeMainActivity : ViewModelActivity<SafeMainContract>() {
                     }
                 }
             }, onError = Timber::e)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (!handleQrCodeActivityResult(requestCode, resultCode, data, {
+            val isDappletRequest = it.indexOf("dpl:") != -1
+
+            if (isDappletRequest) {
+                val requestData = it.substring(4)
+                val frames = JSONArray(requestData)
+                val dappletRequest = DappletRequest()
+                val dappletServiceApi = DappletServiceApi.create()
+
+                for (i in 0..(frames.length() - 1)) {
+                    val frame = frames.getJSONArray(i)
+                    val dappletId = frame.getString(0)
+                    val txMeta = if (frame.length() > 1) frame.getJSONObject(1) else null
+                    dappletRequest.frames.add(DappletFrame(dappletId, txMeta, null))
+
+                    dappletServiceApi.getDapplet(dappletId).subscribe({ response ->
+                        val dapplet = JSONObject(response.string())
+                        dappletRequest.frames.find({ d -> d.dappletId == dappletId })!!.dapplet = dapplet
+
+                        // ToDo: Utilize RxJava to wait all async requests (like Promise.all in JavaScript)
+                        val isAllDappletsLoaded = dappletRequest.frames.filter({ d -> d.dapplet == null }).count() == 0
+                        if (isAllDappletsLoaded) {
+                            val intent = DappletActivity.createIntent(this, selectedSafe!!.address(), dappletRequest, 123, "SessionIdIsHere")
+                            this.startActivity(intent)
+                        }
+                    })
+                }
+            }
+        })) {
+            super.onActivityResult(requestCode, resultCode, data)
+        }
     }
 
     private fun updateOverflowMenu() {
