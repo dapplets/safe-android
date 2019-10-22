@@ -432,7 +432,7 @@ class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
                         // ToDo: Utilize RxJava to wait all async requests (like Promise.all in JavaScript)
                         val isAllDappletsLoaded = dappletRequest.frames.filter({ d -> d.dapplet == null }).count() == 0
                         if (isAllDappletsLoaded) {
-                            val intent = DappletActivity.createIntent(this, selectedSafe!!.address(), dappletRequest, 123, "SessionIdIsHere")
+                            val intent = DappletActivity.createIntent(this, selectedSafe!!.address(), dappletRequest)
                             this.startActivity(intent)
                         }
                     })
