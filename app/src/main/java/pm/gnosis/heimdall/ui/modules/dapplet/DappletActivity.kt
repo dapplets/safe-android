@@ -78,45 +78,66 @@ class DappletViewModel @Inject constructor() : DappletContract() {
             }
         }
 
-        val hex = value.toHexString().padStart(size, '0')
-
-        return hex
+        return value.toHexString().padStart(size, '0')
     }
 
     override fun createSafeTransaction(dapplet: JSONObject, txMeta: JSONObject?): TransactionData {
-        val txs = dapplet.getJSONObject("transactions")
-        val txName = txs.keys().next()
-        val tx = txs.getJSONObject(txName)
-        val to = tx.getString("to")
-        val args = tx.getJSONArray("args")
-        val fn = tx.getString("function")
-        val types = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",").toTypedArray()
+        val transactions = dapplet.getJSONObject("transactions")
 
-        var data = "0x"
+        // ToDo: Create state machine for running of multiple transactions. The first tx is running now.
+        val txName = transactions.keys().next()
+        val tx = transactions.getJSONObject(txName)
 
-        // signature calculation
-        val bytes = fn.commonAsUtf8ToByteArray()
-        val hash = Sha3Utils.keccak(bytes).toHexString()
-        val signature = hash.substring(0, 8)
-        data += signature
+        val type = tx.optString("@type")
+        if (type.length == 0) throw Error("Property \"@type\" is required in transaction.")
 
-        // params encoding
-        val binaryTxMeta = jsonToBinaryMap(txMeta)
-        for (i in 0..(args.length() - 1) step 1) {
-            val arg = args.getString(i)
-            val prop = arg.split(":")[0]
-            var value = binaryTxMeta.get(prop) ?: throw Error("Invalid value")
-            val formattersChain = arg.split(":").drop(1).toTypedArray()
-            val formattedValue = DappletFormatters.formatChain(value, formattersChain)
+        return when (type) {
+            "builder-tx-sol" -> buildSolidityTx(tx, txMeta)
+            else -> throw Error("Incompatible transaction type.")
+        }
+    }
 
-            val type = types[i]
-            val encoded = encode(type, formattedValue)
-            data += encoded
+    private fun buildSolidityTx(tx: JSONObject, metadata: JSONObject?): TransactionData {
+        val to = tx.optString("to")
+        if (to.isEmpty()) throw Error("Property \"to\" is required in transaction.")
+
+        val value = tx.optLong("value", 0)
+
+        var data: String? = null
+
+        val fn = tx.optString("function")
+        if (fn.isNotEmpty()) {
+            val inputTypes = fn.substring(fn.indexOf("(") + 1).replace(")", "").split(",").toTypedArray()
+            val args = tx.optJSONArray("args")
+
+            if (inputTypes.count() != args.length()) throw Error("The number of input parameters and arguments does not match.")
+
+            data = "0x"
+
+            // signature calculation
+            val bytes = fn.commonAsUtf8ToByteArray()
+            val hash = Sha3Utils.keccak(bytes).toHexString()
+            val signature = hash.substring(0, 8)
+            data += signature
+
+            // params encoding
+            val binaryTxMeta = jsonToBinaryMap(metadata)
+            for (i in 0..(args.length() - 1) step 1) {
+                val arg = args.getString(i)
+                val prop = arg.split(":")[0]
+                var value = binaryTxMeta.get(prop) ?: throw Error("Invalid value")
+                val formattersChain = arg.split(":").drop(1).toTypedArray()
+                val formattedValue = DappletFormatters.formatChain(value, formattersChain)
+
+                val type = inputTypes[i]
+                val encoded = encode(type, formattedValue)
+                data += encoded
+            }
         }
 
         return TransactionData.Generic(
             to.asEthereumAddress()!!,
-            BigInteger.ZERO, // ToDo: get value from dapplet
+            BigInteger.valueOf(value),
             data,
             TransactionExecutionRepository.Operation.DELEGATE_CALL
         )
