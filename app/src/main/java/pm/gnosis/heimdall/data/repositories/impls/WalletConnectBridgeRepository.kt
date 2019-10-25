@@ -205,7 +205,14 @@ class WalletConnectBridgeRepository @Inject constructor(
                                 try {
                                     // DPL01 Processing of Custom Requests
                                     if (method == "wallet_checkDappletFramesCompatibility") {
-                                        approveRequest(id, true).subscribe()
+                                        approveRequest(id, hashMapOf(
+                                            "protocolVersion" to "0.2.0",
+                                            "engineVersion" to "0.2.0",
+                                            "device" to hashMapOf(
+                                                "manufacturer" to Build.MANUFACTURER,
+                                                "model" to Build.MODEL
+                                            )
+                                        )).subscribe()
                                         return
                                     } else if (method == "wallet_loadDappletFrames") {
                                         val dappletFramesRaw = (params as List<List<Any>>)
