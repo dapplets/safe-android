@@ -2,7 +2,9 @@ package pm.gnosis.heimdall.ui.modules.dapplet
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
+import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import io.reactivex.rxkotlin.plusAssign
 import kotlinx.android.synthetic.main.layout_transaction_dapplet.*
@@ -184,6 +186,8 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
 
     private val safe: Solidity.Address by lazy { intent.getStringExtra(EXTRA_SAFE_ADDRESS).asEthereumAddress()!! }
 
+    val REQUEST_IMAGE_CAPTURE = 1
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -197,6 +201,14 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
             startActivity(ReviewTransactionActivity.createIntent(this, safe, txData, referenceId, sessionId))
             finish()
         }
+        transaction_dapplet_makephoto.setOnClickListener {
+            // ToDo: open camera view
+            Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+                takePictureIntent.resolveActivity(packageManager)?.also {
+                    startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+                }
+            }
+        }
 
         transaction_dapplet_view.setDappletRequest(dappletRequest)
     }
@@ -205,6 +217,15 @@ class DappletActivity : ViewModelActivity<DappletContract>() {
         super.onStart()
         addressHelper.populateAddressInfo(transaction_dapplet_safe_address, transaction_dapplet_safe_name, transaction_dapplet_safe_image, safe).forEach {
             disposables += it
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            val imageBitmap = data!!.extras.get("data") as Bitmap
+            transaction_dapplet_imageview.setImageBitmap(imageBitmap)
+        } else {
+            super.onActivityResult(requestCode, resultCode, data)
         }
     }
 
