@@ -19,6 +19,7 @@ import io.reactivex.rxkotlin.subscribeBy
 import io.reactivex.subjects.BehaviorSubject
 import kotlinx.android.synthetic.main.dialog_content_edit_name.view.*
 import kotlinx.android.synthetic.main.layout_safe_main.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.android.synthetic.main.layout_wallet_connect_sessions.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -41,19 +42,20 @@ import pm.gnosis.heimdall.ui.addressbook.list.AddressBookActivity
 import pm.gnosis.heimdall.ui.base.Adapter
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsActivity
+import pm.gnosis.heimdall.ui.safe.pairing.connect.Connect2FaStartActivity
+import pm.gnosis.heimdall.ui.safe.pairing.remove.Remove2FaStartActivity
 import pm.gnosis.heimdall.ui.modules.dapplet.DappletActivity
 import pm.gnosis.heimdall.ui.qrscan.QRCodeScanActivity
-import pm.gnosis.heimdall.ui.safe.connect.ConnectExtensionActivity
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeIntroActivity
 import pm.gnosis.heimdall.ui.safe.details.SafeDetailsFragment
 import pm.gnosis.heimdall.ui.safe.list.SafeAdapter
 import pm.gnosis.heimdall.ui.safe.pending.DeploySafeProgressFragment
 import pm.gnosis.heimdall.ui.safe.pending.SafeCreationFundFragment
-import pm.gnosis.heimdall.ui.safe.recover.extension.ReplaceExtensionPairingActivity
-import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.ScanExtensionAddressActivity
+import pm.gnosis.heimdall.ui.safe.pairing.replace.Replace2FaStartActivity
 import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.SetupNewRecoveryPhraseIntroActivity
 import pm.gnosis.heimdall.ui.safe.recover.safe.RecoverSafeIntroActivity
 import pm.gnosis.heimdall.ui.safe.recover.safe.submit.RecoveringSafeFragment
+import pm.gnosis.heimdall.ui.safe.upgrade.UpgradeMasterCopyIntroActivity
 import pm.gnosis.heimdall.ui.settings.general.GeneralSettingsActivity
 import pm.gnosis.heimdall.ui.tokens.manage.ManageTokensActivity
 import pm.gnosis.heimdall.ui.tokens.payment.PaymentTokensActivity
@@ -87,8 +89,6 @@ class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
     private var screenActive: Boolean = false
 
     private val safeSubject = BehaviorSubject.create<AbstractSafe>()
-
-    private var isConnectedToExtension: Boolean = false
 
     override fun screenId() = ScreenId.SAFE_MAIN
 
@@ -143,13 +143,17 @@ class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
                 eventTracker.submit(Event.ScreenView(ScreenId.SAFE_SETTINGS))
             }
 
+        layout_safe_main_upgrade_warning_container.visible(false)
+        layout_safe_main_menu_upgrade_warning.visible(false)
         // Hide menu options until we get the correct state of the safe
         hideMenuOptions()
         disposables += safeSubject
-            // TODO: Should we retry this?
-            .switchMapSingle { viewModel.isConnectedToBrowserExtension(it) }
+            .switchMapSingle { viewModel.loadSafeConfig(it) }
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribeForResult(onNext = ::isConnectedToBrowserExtension, onError = ::isConnectedToBrowserExtensionError)
+            .subscribeForResult(
+                onNext = { (newMasterCopy, extensionConnected) -> handleSafeConfig(newMasterCopy, extensionConnected) },
+                onError = Timber::e
+            )
 
         updateToolbar()
         setupNavigation()
@@ -271,6 +275,9 @@ class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
             selectTab()
             return
         }
+
+        layout_safe_main_upgrade_warning_container.visible(false)
+        layout_safe_main_menu_upgrade_warning.visible(false)
         hideMenuOptions()
         safeSubject.onNext(safe)
         supportFragmentManager.transaction {
@@ -389,21 +396,20 @@ class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
                     }
                     R.id.safe_details_menu_replace_recovery_phrase -> selectedSafe?.let { safe ->
                         startActivity(
-                            if (isConnectedToExtension) {
-                                ScanExtensionAddressActivity.createIntent(this, safe.address())
-                            } else {
-                                SetupNewRecoveryPhraseIntroActivity.createIntent(this, browserExtensionAddress = null, safeAddress = safe.address())
-                            }
+                            SetupNewRecoveryPhraseIntroActivity.createIntent(this, safeAddress = safe.address())
                         )
                     }
-                    R.id.safe_details_menu_replace_browser_extension -> selectedSafe?.let { safe ->
-                        startActivity(ReplaceExtensionPairingActivity.createIntent(this, safe.address()))
+                    R.id.safe_details_menu_replace_2fa -> selectedSafe?.let { safe ->
+                        startActivity(Replace2FaStartActivity.createIntent(this, safe.address()))
                     }
                     R.id.safe_details_menu_show_on_etherscan -> selectedSafe?.let { safe ->
                         openUrl(getString(R.string.etherscan_address_url, safe.address().asEthereumAddressString()))
                     }
                     R.id.safe_details_menu_connect -> selectedSafe?.let { safe ->
-                        startActivity(ConnectExtensionActivity.createIntent(this, safe.address()))
+                        startActivity(Connect2FaStartActivity.createIntent(this, safe.address()))
+                    }
+                    R.id.safe_details_menu_remove_2fa -> selectedSafe?.let { safe ->
+                        startActivity(Remove2FaStartActivity.createIntent(this, safe.address()))
                     }
                 }
             }, onError = Timber::e)
@@ -451,19 +457,29 @@ class SafeMainActivity: ViewModelActivity<SafeMainContract>()  {
 
     private fun hideMenuOptions() {
         popupMenu.menu.findItem(R.id.safe_details_menu_sync).isVisible = false
-        popupMenu.menu.findItem(R.id.safe_details_menu_replace_browser_extension).isVisible = false
+        popupMenu.menu.findItem(R.id.safe_details_menu_replace_2fa).isVisible = false
         popupMenu.menu.findItem(R.id.safe_details_menu_connect).isVisible = false
+        popupMenu.menu.findItem(R.id.safe_details_menu_remove_2fa).isVisible = false
     }
 
-    private fun isConnectedToBrowserExtension(isConnected: Boolean) {
-        isConnectedToExtension = isConnected
+
+    private fun handleSafeConfig(newMasterCopy: Solidity.Address?, isConnected: Boolean) {
+        val safe = safeSubject.value as? Safe
+        val canUpgrade = safe != null && newMasterCopy != null
+        layout_safe_main_upgrade_warning_container.visible(canUpgrade)
+        layout_safe_main_menu_upgrade_warning.visible(canUpgrade)
+        if (canUpgrade) {
+            layout_safe_main_upgrade_warning_card.setOnClickListener {
+                startActivity(UpgradeMasterCopyIntroActivity.createIntent(this, safe!!.address))
+            }
+            layout_safe_main_menu_upgrade_warning.setOnClickListener {
+                startActivity(UpgradeMasterCopyIntroActivity.createIntent(this, safe!!.address))
+            }
+        }
         popupMenu.menu.findItem(R.id.safe_details_menu_sync).isVisible = isConnected && selectedSafe is Safe
-        popupMenu.menu.findItem(R.id.safe_details_menu_replace_browser_extension).isVisible = isConnected && selectedSafe is Safe
+        popupMenu.menu.findItem(R.id.safe_details_menu_replace_2fa).isVisible = isConnected && selectedSafe is Safe
         popupMenu.menu.findItem(R.id.safe_details_menu_connect).isVisible = !isConnected && selectedSafe is Safe
-    }
-
-    private fun isConnectedToBrowserExtensionError(throwable: Throwable) {
-        Timber.e(throwable)
+        popupMenu.menu.findItem(R.id.safe_details_menu_remove_2fa).isVisible = isConnected && selectedSafe is Safe
     }
 
     private fun renameSafe(safe: AbstractSafe) {

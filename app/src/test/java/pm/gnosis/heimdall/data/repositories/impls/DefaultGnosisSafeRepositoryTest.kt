@@ -11,7 +11,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentCaptor
 import org.mockito.BDDMockito.given
 import org.mockito.BDDMockito.then
 import org.mockito.Mock
@@ -33,6 +32,7 @@ import pm.gnosis.heimdall.data.repositories.PushServiceRepository
 import pm.gnosis.heimdall.data.repositories.TokenRepository
 import pm.gnosis.heimdall.data.repositories.models.ERC20Token
 import pm.gnosis.heimdall.data.repositories.models.SafeDeployment
+import pm.gnosis.heimdall.utils.SafeContractUtils
 import pm.gnosis.model.Solidity
 import pm.gnosis.model.SolidityBase
 import pm.gnosis.svalinn.security.db.EncryptedByteArray
@@ -113,7 +113,8 @@ class DefaultGnosisSafeRepositoryTest {
         owners: List<Solidity.Address>,
         payment: BigInteger = BigInteger.ZERO,
         paymentToken: ERC20Token = ETHER_TOKEN,
-        funder: Solidity.Address = TX_ORIGIN_ADDRESS
+        funder: Solidity.Address = TX_ORIGIN_ADDRESS,
+        fallbackHandler: Solidity.Address = DEFAULT_FALLBACK_HANDLER
     ): String = GnosisSafe.Setup.encode(
         _owners = SolidityBase.Vector(owners),
         _threshold = Solidity.UInt256(if (owners.size == 3) BigInteger.ONE else 2.toBigInteger()),
@@ -121,7 +122,8 @@ class DefaultGnosisSafeRepositoryTest {
         data = Solidity.Bytes(byteArrayOf()),
         paymentToken = paymentToken.address,
         payment = Solidity.UInt256(payment),
-        paymentReceiver = funder
+        paymentReceiver = funder,
+        fallbackHandler = fallbackHandler
     ) + "0000000000000000000000000000000000000000000000000000000000000000"
 
     @Test
@@ -541,6 +543,7 @@ class DefaultGnosisSafeRepositoryTest {
 
     @Test
     fun checkSafeInvalidMasterCopyThresholdTooLow() {
+        val masterCopy = "0xdeadbeef".asEthereumAddress()!!
         given(ethereumRepositoryMock.request(MockUtils.any<BulkRequest>())).will {
             val bulk = it.arguments.first() as BulkRequest
             val requests = bulk.requests
@@ -548,14 +551,14 @@ class DefaultGnosisSafeRepositoryTest {
             assertEquals(TEST_SAFE, ethGetStorageAt.from)
             assertEquals(BigInteger.ZERO, ethGetStorageAt.location)
             assertEquals(Block.PENDING, ethGetStorageAt.block)
-            ethGetStorageAt.response = EthRequest.Response.Success("0xdeadbeef".asEthereumAddress()!!.encode())
+            ethGetStorageAt.response = EthRequest.Response.Success(masterCopy.encode())
 
             (requests[1] as EthCall).response = EthRequest.Response.Success(Solidity.UInt256(BigInteger.ONE).encode())
             Observable.just(bulk)
         }
-        val observer = TestObserver<Pair<Boolean, Boolean>>()
+        val observer = TestObserver<Pair<Solidity.Address?, Boolean>>()
         repository.checkSafe(TEST_SAFE).subscribe(observer)
-        observer.assertResult(false to false)
+        observer.assertResult(masterCopy to false)
         then(ethereumRepositoryMock).should().request(MockUtils.any<BulkRequest>())
     }
 
@@ -572,14 +575,15 @@ class DefaultGnosisSafeRepositoryTest {
             (requests[1] as EthCall).response = EthRequest.Response.Success(Solidity.UInt256(BigInteger.ONE).encode())
             Observable.just(bulk)
         }
-        val observer = TestObserver<Pair<Boolean, Boolean>>()
+        val observer = TestObserver<Pair<Solidity.Address?, Boolean>>()
         repository.checkSafe(TEST_SAFE).subscribe(observer)
-        observer.assertResult(false to false)
+        observer.assertResult(null to false)
         then(ethereumRepositoryMock).should().request(MockUtils.any<BulkRequest>())
     }
 
     @Test
     fun checkSafeThresholdFailure() {
+        val masterCopy = "0xdeadbeef".asEthereumAddress()!!
         given(ethereumRepositoryMock.request(MockUtils.any<BulkRequest>())).will {
             val bulk = it.arguments.first() as BulkRequest
             val requests = bulk.requests
@@ -587,17 +591,18 @@ class DefaultGnosisSafeRepositoryTest {
             assertEquals(TEST_SAFE, ethGetStorageAt.from)
             assertEquals(BigInteger.ZERO, ethGetStorageAt.location)
             assertEquals(Block.PENDING, ethGetStorageAt.block)
-            ethGetStorageAt.response = EthRequest.Response.Success("0xdeadbeef".asEthereumAddress()!!.encode())
+            ethGetStorageAt.response = EthRequest.Response.Success(masterCopy.encode())
             (requests[1] as EthCall).response = EthRequest.Response.Failure("EVM error")
             Observable.just(bulk)
         }
-        val observer = TestObserver<Pair<Boolean, Boolean>>()
+        val observer = TestObserver<Pair<Solidity.Address?, Boolean>>()
         repository.checkSafe(TEST_SAFE).subscribe(observer)
-        observer.assertResult(false to false)
+        observer.assertResult(masterCopy to false)
         then(ethereumRepositoryMock).should().request(MockUtils.any<BulkRequest>())
     }
 
     private fun testMasterCopy(masterCopy: String, threshold: Int) {
+        val masterCopyAddress = masterCopy.asEthereumAddress()!!
         given(ethereumRepositoryMock.request(MockUtils.any<BulkRequest>())).will {
             val bulk = it.arguments.first() as BulkRequest
             val requests = bulk.requests
@@ -605,20 +610,24 @@ class DefaultGnosisSafeRepositoryTest {
             assertEquals(TEST_SAFE, ethGetStorageAt.from)
             assertEquals(BigInteger.ZERO, ethGetStorageAt.location)
             assertEquals(Block.PENDING, ethGetStorageAt.block)
-            ethGetStorageAt.response = EthRequest.Response.Success(masterCopy.asEthereumAddress()!!.encode())
+            ethGetStorageAt.response = EthRequest.Response.Success(masterCopyAddress.encode())
                 (requests[1] as EthCall).response = EthRequest.Response.Success(Solidity.UInt256(BigInteger.valueOf(threshold.toLong())).encode())
             Observable.just(bulk)
         }
-        val observer = TestObserver<Pair<Boolean, Boolean>>()
+        val observer = TestObserver<Pair<Solidity.Address?, Boolean>>()
         repository.checkSafe(TEST_SAFE).subscribe(observer)
-        observer.assertResult(true to true)
+        observer.assertResult(masterCopyAddress to true)
         then(ethereumRepositoryMock).should().request(MockUtils.any<BulkRequest>())
         Mockito.reset(ethereumRepositoryMock)
     }
 
     @Test
     fun checkSafe() {
-        val masterCopyAddresses = BuildConfig.SUPPORTED_SAFE_MASTER_COPY_ADDRESSES.split(",") + BuildConfig.CURRENT_SAFE_MASTER_COPY_ADDRESS
+        val masterCopyAddresses = listOf(
+            BuildConfig.SAFE_MASTER_COPY_0_0_2,
+            BuildConfig.SAFE_MASTER_COPY_0_1_0,
+            BuildConfig.SAFE_MASTER_COPY_1_0_0
+        )
         masterCopyAddresses.forEachIndexed { index, address -> testMasterCopy(address, index + 2) }
     }
 
@@ -643,19 +652,17 @@ class DefaultGnosisSafeRepositoryTest {
         then(safeDaoMock).shouldHaveZeroInteractions()
     }
 
-    fun <T> capture(argumentCaptor: ArgumentCaptor<T>): T = argumentCaptor.capture()
-
     companion object {
         private val TEST_SAFE = "0xdeadfeedbeaf".asEthereumAddress()!!
         private val TEST_TOKEN = ERC20Token(Solidity.Address(BigInteger.ONE), "Hello Token", "HT", 10)
-        private val MASTER_COPY_ADDRESS = BuildConfig.CURRENT_SAFE_MASTER_COPY_ADDRESS.asEthereumAddress()!!
-        private val PROXY_FACTORY_ADDRESS = BuildConfig.PROXY_FACTORY_ADDRESS.asEthereumAddress()!!
         private val ETHER_TOKEN = ERC20Token.ETHER_TOKEN
         private val PAYMENT_TOKEN = ERC20Token("0xdeadbeef".asEthereumAddress()!!, "Payment Token", "PT", 18)
         private val FUNDER_ADDRESS = BuildConfig.SAFE_CREATION_FUNDER.asEthereumAddress()!!
         private val TX_ORIGIN_ADDRESS = "0x0".asEthereumAddress()!!
-        private const val RECOVERY_PHRASE = "degree media athlete harvest rocket plate minute obey head toward coach senior"
+        private val MASTER_COPY_ADDRESS = "0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F".asEthereumAddress()!!
+        private val PROXY_FACTORY_ADDRESS = "0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B".asEthereumAddress()!!
+        private val DEFAULT_FALLBACK_HANDLER = "0xd5D82B6aDDc9027B22dCA772Aa68D5d74cdBdF44".asEthereumAddress()!!
         private const val PROXY_CODE =
-            "0x608060405234801561001057600080fd5b506040516020806101a88339810180604052602081101561003057600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100c7576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260248152602001806101846024913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050606e806101166000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054163660008037600080366000845af43d6000803e6000811415603d573d6000fd5b3d6000f3fea165627a7a723058201e7d648b83cfac072cbccefc2ffc62a6999d4a050ee87a721942de1da9670db80029496e76616c6964206d617374657220636f707920616464726573732070726f7669646564"
+            "0x608060405234801561001057600080fd5b506040516101e73803806101e78339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260248152602001806101c36024913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060aa806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea265627a7a72315820d8a00dc4fe6bf675a9d7416fc2d00bb3433362aa8186b750f76c4027269667ff64736f6c634300050e0032496e76616c6964206d617374657220636f707920616464726573732070726f7669646564"
     }
 }

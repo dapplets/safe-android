@@ -5,6 +5,7 @@ import android.os.Parcelable
 import io.reactivex.Single
 import kotlinx.android.parcel.Parcelize
 import kotlinx.android.parcel.TypeParceler
+import pm.gnosis.heimdall.data.repositories.TransactionExecutionRepository.Operation
 import pm.gnosis.heimdall.data.repositories.models.SafeTransaction
 import pm.gnosis.heimdall.utils.SolidityAddressParceler
 import pm.gnosis.model.Solidity
@@ -17,13 +18,14 @@ interface TransactionInfoRepository {
     fun loadTransactionInfo(id: String): Single<TransactionInfo>
 }
 
-sealed class RestrictedTransactionException : IllegalArgumentException() {
-    object DelegateCall : RestrictedTransactionException()
-    object ModifyOwners : RestrictedTransactionException()
-    object ModifyModules : RestrictedTransactionException()
-    object ChangeThreshold : RestrictedTransactionException()
-    object ChangeMasterCopy : RestrictedTransactionException()
-    object DataCallToSafe : RestrictedTransactionException()
+sealed class RestrictedTransactionException(msg: String) : IllegalArgumentException(msg) {
+    object DelegateCall : RestrictedTransactionException("Delegate calls are not allowed")
+    object ModifyOwners : RestrictedTransactionException("Changing owners is not allowed")
+    object ModifyModules : RestrictedTransactionException("Changing modules is not allowed")
+    object ChangeThreshold : RestrictedTransactionException("Changing the threshold is not allowed")
+    object ChangeMasterCopy : RestrictedTransactionException("Changing the master copy is not allowed")
+    object SetFallbackHandler : RestrictedTransactionException("Setting the fallback handler is not allowed")
+    object DataCallToSafe : RestrictedTransactionException("Interaction with the Safe are not allowed")
 }
 
 data class TransactionInfo(
@@ -34,12 +36,8 @@ data class TransactionInfo(
 sealed class TransactionData : Parcelable {
     @Parcelize
     @TypeParceler<Solidity.Address, SolidityAddressParceler>
-    data class Generic(
-        val to: Solidity.Address,
-        val value: BigInteger,
-        val data: String?,
-        val operation: TransactionExecutionRepository.Operation = TransactionExecutionRepository.Operation.CALL
-    ) : TransactionData()
+    data class Generic(val to: Solidity.Address, val value: BigInteger, val data: String?, val operation: Operation = Operation.CALL) :
+        TransactionData()
 
     @Parcelize
     @TypeParceler<Solidity.Address, SolidityAddressParceler>
@@ -51,7 +49,15 @@ sealed class TransactionData : Parcelable {
 
     @Parcelize
     @TypeParceler<Solidity.Address, SolidityAddressParceler>
-    data class ConnectExtension(val extension: Solidity.Address) : TransactionData()
+    data class ConnectAuthenticator(val extension: Solidity.Address) : TransactionData()
+
+    @Parcelize
+    @TypeParceler<Solidity.Address, SolidityAddressParceler>
+    data class UpdateMasterCopy(val masterCopy: Solidity.Address) : TransactionData()
+
+    @Parcelize
+    @TypeParceler<Solidity.Address, SolidityAddressParceler>
+    data class MultiSend(val transactions: List<SafeTransaction>, val contract: Solidity.Address) : TransactionData()
 
     fun addToBundle(bundle: Bundle) =
         bundle.let {
@@ -64,7 +70,9 @@ sealed class TransactionData : Parcelable {
             is Generic -> TYPE_GENERIC
             is AssetTransfer -> TYPE_ASSET_TRANSFER
             is ReplaceRecoveryPhrase -> TYPE_REPLACE_RECOVERY_PHRASE
-            is ConnectExtension -> TYPE_CONNECT_EXTENSION
+            is ConnectAuthenticator -> TYPE_CONNECT_EXTENSION
+            is UpdateMasterCopy -> TYPE_UPDATE_MASTER_COPY
+            is MultiSend -> TYPE_MULTI_SEND
         }
 
     companion object {
@@ -75,6 +83,8 @@ sealed class TransactionData : Parcelable {
         private const val TYPE_ASSET_TRANSFER = 1
         private const val TYPE_REPLACE_RECOVERY_PHRASE = 2
         private const val TYPE_CONNECT_EXTENSION = 3
+        private const val TYPE_UPDATE_MASTER_COPY = 4
+        private const val TYPE_MULTI_SEND = 5
 
         fun fromBundle(bundle: Bundle): TransactionData? =
             bundle.run {
@@ -82,7 +92,9 @@ sealed class TransactionData : Parcelable {
                     TYPE_GENERIC -> getParcelable<Generic>(EXTRA_DATA)
                     TYPE_ASSET_TRANSFER -> getParcelable<AssetTransfer>(EXTRA_DATA)
                     TYPE_REPLACE_RECOVERY_PHRASE -> getParcelable<ReplaceRecoveryPhrase>(EXTRA_DATA)
-                    TYPE_CONNECT_EXTENSION -> getParcelable<ConnectExtension>(EXTRA_DATA)
+                    TYPE_CONNECT_EXTENSION -> getParcelable<ConnectAuthenticator>(EXTRA_DATA)
+                    TYPE_UPDATE_MASTER_COPY -> getParcelable<UpdateMasterCopy>(EXTRA_DATA)
+                    TYPE_MULTI_SEND -> getParcelable<MultiSend>(EXTRA_DATA)
                     else -> throw IllegalArgumentException("Unknown transaction data type")
                 }
             }

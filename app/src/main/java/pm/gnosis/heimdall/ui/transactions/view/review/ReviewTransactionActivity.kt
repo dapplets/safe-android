@@ -1,8 +1,10 @@
 package pm.gnosis.heimdall.ui.transactions.view.review
 
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.core.widget.NestedScrollView
 import com.jakewharton.rxbinding2.view.clicks
@@ -17,26 +19,32 @@ import kotlinx.android.synthetic.main.layout_review_transaction.*
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.repositories.TransactionData
 import pm.gnosis.heimdall.di.components.ViewComponent
+import pm.gnosis.heimdall.helpers.NfcViewModelActivity
 import pm.gnosis.heimdall.helpers.ToolbarHelper
 import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
+import pm.gnosis.heimdall.ui.dialogs.base.ConfirmationDialog
+import pm.gnosis.heimdall.ui.safe.main.SafeMainActivity
 import pm.gnosis.heimdall.ui.security.unlock.UnlockDialog
-import pm.gnosis.heimdall.ui.transactions.TransactionSubmissionConfirmationDialog
 import pm.gnosis.heimdall.ui.transactions.view.TransactionInfoViewHolder
 import pm.gnosis.heimdall.ui.transactions.view.helpers.SubmitTransactionHelper.Events
 import pm.gnosis.heimdall.ui.transactions.view.helpers.SubmitTransactionHelper.ViewUpdate
 import pm.gnosis.heimdall.ui.transactions.view.helpers.TransactionSubmitInfoViewHelper
 import pm.gnosis.heimdall.utils.InfoTipDialogBuilder
 import pm.gnosis.heimdall.utils.errorSnackbar
+import pm.gnosis.heimdall.utils.loggedTry
 import pm.gnosis.model.Solidity
+import pm.gnosis.svalinn.common.utils.openUrl
 import pm.gnosis.svalinn.common.utils.subscribeForResult
 import pm.gnosis.svalinn.common.utils.visible
 import pm.gnosis.utils.asEthereumAddress
+import pm.gnosis.utils.nullOnThrow
 import pm.gnosis.utils.toHexString
 import timber.log.Timber
 import javax.inject.Inject
 
-class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>(), UnlockDialog.UnlockCallback {
+class ReviewTransactionActivity : NfcViewModelActivity<ReviewTransactionContract>(), UnlockDialog.UnlockCallback,
+    ConfirmationDialog.OnDismissListener {
 
     @Inject
     lateinit var infoViewHelper: TransactionSubmitInfoViewHelper
@@ -50,6 +58,8 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
     private var transactionInfoViewHolder: TransactionInfoViewHolder? = null
 
     private var referenceId: Long? = null
+
+    private var submittedTxChainHash: String? = null
 
     private val unlockStatusSubject = PublishSubject.create<Unit>()
 
@@ -71,7 +81,7 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
             return
         }
 
-        referenceId = if (intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, 0) else null
+        referenceId = if (intent.hasExtra(EXTRA_REFERENCE_ID)) intent.getLongExtra(EXTRA_REFERENCE_ID, -1) else null
         viewModel.setup(safeAddress, referenceId, intent.getStringExtra(EXTRA_SESSION_ID))
         infoViewHelper.bind(layout_review_transaction_transaction_info)
     }
@@ -156,13 +166,39 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
             is ViewUpdate.TransactionInfo ->
                 setupViewHolder(update.viewHolder)
             is ViewUpdate.TransactionSubmitted -> {
-                if (update.success) {
-                    TransactionSubmissionConfirmationDialog.create(referenceId).show(supportFragmentManager, null)
+                submittedTxChainHash = update.txHash
+                if (update.txHash != null) {
+                    ConfirmationDialog.create(R.drawable.ic_congratulations, R.string.transaction_submitted).show(supportFragmentManager, null)
+                } else {
                     infoViewHelper.toggleReadyState(true)
                 }
             }
             else ->
                 infoViewHelper.applyUpdate(update)?.let { disposables += it }
+        }
+    }
+
+    override fun onConfirmationDialogDismiss() {
+        callingActivity?.let {
+            setResult(Activity.RESULT_OK, Intent().apply {
+                data = Uri.Builder().scheme("ethereum").authority("tx-$submittedTxChainHash").build()
+                putExtra(RESULT_TX_HASH, submittedTxChainHash)
+            })
+            finish()
+        } ?: intent.getStringExtra(EXTRA_REFERRER)?.let {
+            nullOnThrow { openUrl(it + submittedTxChainHash) }
+            finish()
+        } ?: referenceId?.let {
+            // If we have a reference id then we have been opened from a external request and should just close the screen without opening a new one
+            finish()
+        } ?: run {
+            startActivity(
+                SafeMainActivity.createIntent(
+                    this,
+                    null,
+                    R.string.tab_title_transactions
+                )
+            )
         }
     }
 
@@ -193,14 +229,24 @@ class ReviewTransactionActivity : ViewModelActivity<ReviewTransactionContract>()
     }
 
     companion object {
+        const val RESULT_TX_HASH = "result.string.ethereum_tx_hash"
         private const val EXTRA_SAFE_ADDRESS = "extra.string.safe_address"
         private const val EXTRA_REFERENCE_ID = "extra.long.reference_id"
         private const val EXTRA_SESSION_ID = "extra.string.session_id"
-        fun createIntent(context: Context, safe: Solidity.Address, txData: TransactionData, referenceId: Long? = null, sessionId: String? = null) =
+        private const val EXTRA_REFERRER = "extra.string.referrer"
+        fun createIntent(
+            context: Context,
+            safe: Solidity.Address,
+            txData: TransactionData,
+            referenceId: Long? = null,
+            sessionId: String? = null,
+            referrer: String? = null
+        ) =
             Intent(context, ReviewTransactionActivity::class.java).apply {
                 putExtra(EXTRA_SAFE_ADDRESS, safe.value.toHexString())
                 referenceId?.let { putExtra(EXTRA_REFERENCE_ID, it) }
                 putExtra(EXTRA_SESSION_ID, sessionId)
+                putExtra(EXTRA_REFERRER, referrer)
                 putExtras(Bundle().apply {
                     txData.addToBundle(this)
                 })

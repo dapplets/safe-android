@@ -41,6 +41,8 @@
 # Okio
 ####################################################################################################
 -dontwarn okio.**
+# Animal Sniffer compileOnly dependency to ensure APIs are compatible with older versions of Java.
+-dontwarn org.codehaus.mojo.animal_sniffer.*
 
 ####################################################################################################
 # Okhttp
@@ -81,3 +83,8 @@
 }
 # Ignore annotation used for build tooling.
 -dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+
+####################################################################################################
+# BouncyCastle
+####################################################################################################
+-keep class org.bouncycastle.** { *; }

@@ -12,15 +12,20 @@ import org.mockito.Mock
 import org.mockito.junit.MockitoJUnitRunner
 import pm.gnosis.heimdall.ERC20Contract
 import pm.gnosis.heimdall.GnosisSafe
+import pm.gnosis.heimdall.MultiSend
 import pm.gnosis.heimdall.data.db.ApplicationDb
 import pm.gnosis.heimdall.data.db.daos.DescriptionsDao
 import pm.gnosis.heimdall.data.db.models.TransactionDescriptionDb
 import pm.gnosis.heimdall.data.db.models.TransactionPublishStatusDb
-import pm.gnosis.heimdall.data.repositories.*
+import pm.gnosis.heimdall.data.repositories.RestrictedTransactionException
+import pm.gnosis.heimdall.data.repositories.TransactionData
 import pm.gnosis.heimdall.data.repositories.TransactionExecutionRepository.Operation.CALL
 import pm.gnosis.heimdall.data.repositories.TransactionExecutionRepository.Operation.DELEGATE_CALL
+import pm.gnosis.heimdall.data.repositories.TransactionInfo
 import pm.gnosis.heimdall.data.repositories.models.ERC20Token
 import pm.gnosis.heimdall.data.repositories.models.SafeTransaction
+import pm.gnosis.heimdall.data.repositories.toInt
+import pm.gnosis.heimdall.ui.transactions.builder.MultiSendTransactionBuilder
 import pm.gnosis.model.Solidity
 import pm.gnosis.models.Transaction
 import pm.gnosis.models.Wei
@@ -70,6 +75,17 @@ class DefaultTransactionInfoRepositoryTest {
                                     Transaction(
                                         address = TEST_SAFE,
                                         data = GnosisSafe.ChangeMasterCopy.encode("0x1".asEthereumAddress()!!)
+                                    ), CALL
+                                )
+                            )
+                    ),
+            RestrictedTransactionException.SetFallbackHandler::class to (
+                    RestrictedTransactionException.SetFallbackHandler to
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(
+                                        address = TEST_SAFE,
+                                        data = GnosisSafe.SetFallbackHandler.encode("0x1".asEthereumAddress()!!)
                                     ), CALL
                                 )
                             )
@@ -244,7 +260,7 @@ class DefaultTransactionInfoRepositoryTest {
             TEST_DATA_TRANSACTION_INFO[klass]?.let { tests ->
                 if (tests.isEmpty()) throw IllegalStateException("Missing tests for ${klass.simpleName}")
                 tests.forEach {
-                    val testId = UUID.randomUUID().toString()
+                    val testId = "$klass ${UUID.randomUUID()}"
                     val testSubmitDate = System.currentTimeMillis()
                     given(descriptionsDaoMock.loadDescription(testId)).willReturn(
                         Single.just(
@@ -305,8 +321,15 @@ class DefaultTransactionInfoRepositoryTest {
         private val TEST_ETH_AMOUNT = Wei.ether("23")
         private val TEST_TOKEN_ADDRESS = "0xa7e15e2e76ab469f8681b576cff168f37aa246ec".asEthereumAddress()!!
         private val TEST_TOKEN_AMOUNT = BigInteger("230000000000")
+        private val SAFE_MASTER_COPY_1_1_1 = "0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F".asEthereumAddress()!!
+        private val DEFAULT_CALLBACK_HANDLER = "0xd5D82B6aDDc9027B22dCA772Aa68D5d74cdBdF44".asEthereumAddress()!!
+        private val MULTI_SEND_LIB = "0x8D29bE29923b68abfDD21e541b9374737B49cdAD".asEthereumAddress()!!
+        private val MULTI_SEND_OLD_LIB = "0xe74d6af1670fb6560dd61ee29eb57c7bc027ce4e".asEthereumAddress()!!
 
-        private const val REPLACE_RECOVERY_PHRASE_DATA =
+        private val TOKEN_TRANSFER_DATA =
+            ERC20Contract.Transfer.encode(TEST_ADDRESS, Solidity.UInt256(TEST_TOKEN_AMOUNT))
+
+        private const val REPLACE_RECOVERY_PHRASE_DATA_OLD_MULTISEND =
             "0x8d80ff0a" + // Multi send method
                     "0000000000000000000000000000000000000000000000000000000000000020" +
                     "0000000000000000000000000000000000000000000000000000000000000240" +
@@ -331,12 +354,105 @@ class DefaultTransactionInfoRepositoryTest {
                     "000000000000000000000000000000000000000000000000000000000000000e" + // New Owner
                     "00000000000000000000000000000000000000000000000000000000" // Padding
 
-        private val REPLACE_RECOVERY_PHRASE_TX =
+        private const val REPLACE_RECOVERY_PHRASE_DATA_NEW_MULTISEND =
+            "0x8d80ff0a" + // Multi send method
+                    "0000000000000000000000000000000000000000000000000000000000000020" +
+                    "0000000000000000000000000000000000000000000000000000000000000172" +
+                    "00" + // Operation
+                    "1f81fff89bd57811983a35650296681f99c65c7e" + // Safe address
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "0000000000000000000000000000000000000000000000000000000000000064" +
+                    "e318b52b" + // Swap owner method
+                    "000000000000000000000000000000000000000000000000000000000000000c" + // Previous Owner
+                    "000000000000000000000000000000000000000000000000000000000000000d" + // Old Owner
+                    "000000000000000000000000000000000000000000000000000000000000000f" + // New Owner
+                    "00" + // Operation
+                    "1f81fff89bd57811983a35650296681f99c65c7e" + // Safe address
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "0000000000000000000000000000000000000000000000000000000000000064" +
+                    "e318b52b" + // Swap owner method
+                    "0000000000000000000000000000000000000000000000000000000000000001" + // Previous Owner
+                    "000000000000000000000000000000000000000000000000000000000000000a" + // Old Owner
+                    "000000000000000000000000000000000000000000000000000000000000000e" +  // New Owner
+                    "0000000000000000000000000000" // Padding
+
+        private const val MULTI_SEND_SWAP_OWNER_DATA =
+            "e318b52b" + // Swap owner method
+                    "000000000000000000000000000000000000000000000000000000000000000c" + // Previous Owner
+                    "000000000000000000000000000000000000000000000000000000000000000d" + // Old Owner
+                    "000000000000000000000000000000000000000000000000000000000000000f" // New Owner
+
+        private const val MULTI_SEND_1_DATA_OLD =
+            "8d80ff0a" + // Multi send method
+                    "0000000000000000000000000000000000000000000000000000000000000020" +
+                    "0000000000000000000000000000000000000000000000000000000000000240" +
+                    "0000000000000000000000000000000000000000000000000000000000000000" + // Operation
+                    "000000000000000000000000A7e15e2e76Ab469F8681b576cFF168F37Aa246EC" + // Safe address
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "0000000000000000000000000000000000000000000000000000000000000080" +
+                    "0000000000000000000000000000000000000000000000000000000000000064" +
+                    MULTI_SEND_SWAP_OWNER_DATA +
+                    "00000000000000000000000000000000000000000000000000000000" // Padding
+
+        private const val MULTI_SEND_2_DATA_OLD =
+            "8d80ff0a" + // Multi send method
+                    "0000000000000000000000000000000000000000000000000000000000000020" +
+                    "0000000000000000000000000000000000000000000000000000000000000240" +
+                    "0000000000000000000000000000000000000000000000000000000000000001" + // Operation
+                    "000000000000000000000000e74d6af1670fb6560dd61ee29eb57c7bc027ce4e" + // MultiSend address
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "0000000000000000000000000000000000000000000000000000000000000080" +
+                    "0000000000000000000000000000000000000000000000000000000000000164" +
+                    MULTI_SEND_1_DATA_OLD +
+                    "00000000000000000000000000000000000000000000000000000000" +  // Padding
+                    "0000000000000000000000000000000000000000000000000000000000000000" + // Operation
+                    "000000000000000000000000c257274276a4e539741ca11b590b9447b26a8051" + // Safe address
+                    "0000000000000000000000000000000000000000000000000000000000000010" +
+                    "0000000000000000000000000000000000000000000000000000000000000080" +
+                    "0000000000000000000000000000000000000000000000000000000000000000"
+
+        private const val MULTI_SEND_1_DATA_NEW =
+            "8d80ff0a" + // Multi send method
+                    "0000000000000000000000000000000000000000000000000000000000000020" +
+                    "00000000000000000000000000000000000000000000000000000000000000b9" +
+                    "00" + // Operation
+                    "A7e15e2e76Ab469F8681b576cFF168F37Aa246EC" + // Safe address
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "0000000000000000000000000000000000000000000000000000000000000064" +
+                    MULTI_SEND_SWAP_OWNER_DATA +
+                    "00000000000000" // Multi send padding
+
+        private const val MULTI_SEND_2_DATA_NEW =
+            "8d80ff0a" + // Multi send method
+                    "0000000000000000000000000000000000000000000000000000000000000020" +
+                    "00000000000000000000000000000000000000000000000000000000000001ae" +
+                    "01" + // Operation
+                    "8D29bE29923b68abfDD21e541b9374737B49cdAD" + // MultiSend address
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "0000000000000000000000000000000000000000000000000000000000000104" +
+                    MULTI_SEND_1_DATA_NEW +
+                    "00" + // Operation
+                    "c257274276a4e539741ca11b590b9447b26a8051" + // Safe address
+                    "0000000000000000000000000000000000000000000000000000000000000010" +
+                    "0000000000000000000000000000000000000000000000000000000000000000" +
+                    "000000000000000000000000000000000000" // Multi send padding
+
+        private val REPLACE_RECOVERY_PHRASE_TX_NEW_MULTISEND =
             SafeTransaction(
                 Transaction(
-                    address = TEST_SAFE,
+                    address = MULTI_SEND_LIB,
                     value = Wei.ZERO,
-                    data = REPLACE_RECOVERY_PHRASE_DATA,
+                    data = REPLACE_RECOVERY_PHRASE_DATA_NEW_MULTISEND,
+                    nonce = BigInteger.ZERO
+                ), DELEGATE_CALL
+            )
+
+        private val REPLACE_RECOVERY_PHRASE_TX_OLD_MULTISEND =
+            SafeTransaction(
+                Transaction(
+                    address = MULTI_SEND_OLD_LIB,
+                    value = Wei.ZERO,
+                    data = REPLACE_RECOVERY_PHRASE_DATA_OLD_MULTISEND,
                     nonce = BigInteger.ZERO
                 ), DELEGATE_CALL
             )
@@ -355,7 +471,7 @@ class DefaultTransactionInfoRepositoryTest {
                         TestData(
                             SafeTransaction(
                                 Transaction(
-                                    TEST_TOKEN_ADDRESS, data = ERC20Contract.Transfer.encode(TEST_ADDRESS, Solidity.UInt256(TEST_TOKEN_AMOUNT))
+                                    TEST_TOKEN_ADDRESS, data = TOKEN_TRANSFER_DATA
                                 ), CALL
                             ),
                             TransactionData.AssetTransfer(TEST_TOKEN_ADDRESS, TEST_TOKEN_AMOUNT, TEST_ADDRESS)
@@ -376,13 +492,13 @@ class DefaultTransactionInfoRepositoryTest {
                                 Transaction(
                                     TEST_TOKEN_ADDRESS,
                                     value = TEST_ETH_AMOUNT,
-                                    data = ERC20Contract.Transfer.encode(TEST_ADDRESS, Solidity.UInt256(TEST_TOKEN_AMOUNT))
+                                    data = TOKEN_TRANSFER_DATA
                                 ), CALL
                             ),
                             TransactionData.Generic(
                                 TEST_TOKEN_ADDRESS,
                                 TEST_ETH_AMOUNT.value,
-                                ERC20Contract.Transfer.encode(TEST_ADDRESS, Solidity.UInt256(TEST_TOKEN_AMOUNT))
+                                TOKEN_TRANSFER_DATA
                             )
                         ),
                         TestData(
@@ -391,26 +507,260 @@ class DefaultTransactionInfoRepositoryTest {
                                     TEST_ADDRESS, value = TEST_ETH_AMOUNT, data = "0x468721a7", nonce = BigInteger.valueOf(23)
                                 ), DELEGATE_CALL
                             ),
-                            TransactionData.Generic(TEST_ADDRESS, TEST_ETH_AMOUNT.value, "0x468721a7")
+                            TransactionData.Generic(TEST_ADDRESS, TEST_ETH_AMOUNT.value, "0x468721a7", DELEGATE_CALL)
+                        ),
+                        // Asset transfer but with delegate call
+                        TestData(
+                            SafeTransaction(
+                                Transaction(
+                                    TEST_ADDRESS, value = TEST_ETH_AMOUNT, data = ""
+                                ), DELEGATE_CALL
+                            ),
+                            TransactionData.Generic(TEST_ADDRESS, TEST_ETH_AMOUNT.value, "", DELEGATE_CALL)
+                        ),
+                        TestData(
+                            SafeTransaction(
+                                Transaction(
+                                    TEST_TOKEN_ADDRESS, data = TOKEN_TRANSFER_DATA
+                                ), DELEGATE_CALL
+                            ),
+                            TransactionData.Generic(TEST_TOKEN_ADDRESS, BigInteger.ZERO, TOKEN_TRANSFER_DATA, DELEGATE_CALL)
+                        ),
+                        // Unknown multisend contracts
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    TEST_ADDRESS, data = "0x$MULTI_SEND_1_DATA_NEW"
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.Generic(TEST_ADDRESS, BigInteger.ZERO, "0x$MULTI_SEND_1_DATA_NEW", DELEGATE_CALL)
+                        ),
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    TEST_ADDRESS, data = "0x$MULTI_SEND_1_DATA_OLD"
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.Generic(TEST_ADDRESS, BigInteger.ZERO, "0x$MULTI_SEND_1_DATA_OLD", DELEGATE_CALL)
                         )
                     ),
             TransactionData.ReplaceRecoveryPhrase::class to
                     listOf(
                         TestData(
-                            REPLACE_RECOVERY_PHRASE_TX,
-                            TransactionData.ReplaceRecoveryPhrase(REPLACE_RECOVERY_PHRASE_TX)
+                            REPLACE_RECOVERY_PHRASE_TX_OLD_MULTISEND,
+                            TransactionData.ReplaceRecoveryPhrase(REPLACE_RECOVERY_PHRASE_TX_OLD_MULTISEND)
+                        ),
+                        TestData(
+                            REPLACE_RECOVERY_PHRASE_TX_NEW_MULTISEND,
+                            TransactionData.ReplaceRecoveryPhrase(REPLACE_RECOVERY_PHRASE_TX_NEW_MULTISEND)
                         )
                     ),
-            TransactionData.ConnectExtension::class to
+            TransactionData.ConnectAuthenticator::class to
                     listOf(
                         TestData(
                             transaction = SafeTransaction(
                                 Transaction(
                                     TEST_SAFE, data = GnosisSafe.AddOwnerWithThreshold.encode(TEST_ADDRESS, Solidity.UInt256(2.toBigInteger()))
-                                ), operation = TransactionExecutionRepository.Operation.CALL
-                            ), expected = TransactionData.ConnectExtension(TEST_ADDRESS)
+                                ), operation = CALL
+                            ), expected = TransactionData.ConnectAuthenticator(TEST_ADDRESS)
+                        )
+                    ),
+            TransactionData.UpdateMasterCopy::class to
+                    listOf(
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(TEST_ADDRESS)
+                                ), operation = CALL
+                            ), expected = TransactionData.UpdateMasterCopy(TEST_ADDRESS)
+                        )
+                    ),
+            TransactionData.UpdateMasterCopy::class to
+                    listOf(
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(TEST_ADDRESS)
+                                ), operation = CALL
+                            ), expected = TransactionData.UpdateMasterCopy(TEST_ADDRESS)
+                        ),
+                        TestData(
+                            transaction = MultiSendTransactionBuilder.build(
+                                listOf(
+                                    SafeTransaction(
+                                        Transaction(TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(SAFE_MASTER_COPY_1_1_1)),
+                                        CALL
+                                    ),
+                                    SafeTransaction(
+                                        Transaction(TEST_SAFE, data = GnosisSafe.SetFallbackHandler.encode(DEFAULT_CALLBACK_HANDLER)),
+                                        CALL
+                                    )
+                                )
+                            ),
+                            expected = TransactionData.UpdateMasterCopy(SAFE_MASTER_COPY_1_1_1)
+                        )
+                    ),
+            TransactionData.MultiSend::class to
+                    // Old multisend contract
+                    listOf(
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    MULTI_SEND_OLD_LIB, data = MultiSend.MultiSend.encode(Solidity.Bytes(byteArrayOf()))
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.MultiSend(emptyList(), MULTI_SEND_OLD_LIB)
+                        ),
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    MULTI_SEND_OLD_LIB, data = "0x$MULTI_SEND_1_DATA_OLD"
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.MultiSend(
+                                listOf(
+                                    SafeTransaction(
+                                        Transaction(TEST_SAFE, value = Wei.ZERO, data = "0x$MULTI_SEND_SWAP_OWNER_DATA"),
+                                        CALL
+                                    )
+                                ),
+                                MULTI_SEND_OLD_LIB
+                            )
+                        ),
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    MULTI_SEND_OLD_LIB, data = "0x$MULTI_SEND_2_DATA_OLD"
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.MultiSend(
+                                listOf(
+                                    SafeTransaction(
+                                        Transaction(MULTI_SEND_OLD_LIB, value = Wei.ZERO, data = "0x$MULTI_SEND_1_DATA_OLD".toLowerCase()),
+                                        DELEGATE_CALL
+                                    ),
+
+                                    SafeTransaction(
+                                        Transaction(TEST_ADDRESS, value = Wei(BigInteger.valueOf(16)), data = "0x"),
+                                        CALL
+                                    )
+                                ),
+                                MULTI_SEND_OLD_LIB
+                            )
+                        ),
+                        // New multisend contract
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    MULTI_SEND_LIB, data = MultiSend.MultiSend.encode(Solidity.Bytes(byteArrayOf()))
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.MultiSend(emptyList(), MULTI_SEND_LIB)
+                        ),
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    MULTI_SEND_LIB, data = "0x$MULTI_SEND_1_DATA_NEW"
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.MultiSend(
+                                listOf(
+                                    SafeTransaction(
+                                        Transaction(TEST_SAFE, value = Wei.ZERO, data = "0x$MULTI_SEND_SWAP_OWNER_DATA"),
+                                        CALL
+                                    )
+                                ),
+                                MULTI_SEND_LIB
+                            )
+                        ),
+                        TestData(
+                            transaction = SafeTransaction(
+                                Transaction(
+                                    MULTI_SEND_LIB, data = "0x$MULTI_SEND_2_DATA_NEW"
+                                ), operation = DELEGATE_CALL
+                            ), expected = TransactionData.MultiSend(
+                                listOf(
+                                    SafeTransaction(
+                                        Transaction(MULTI_SEND_LIB, value = Wei.ZERO, data = "0x$MULTI_SEND_1_DATA_NEW".toLowerCase()),
+                                        DELEGATE_CALL
+                                    ),
+
+                                    SafeTransaction(
+                                        Transaction(TEST_ADDRESS, value = Wei(BigInteger.valueOf(16)), data = "0x"),
+                                        CALL
+                                    )
+                                ),
+                                MULTI_SEND_LIB
+                            )
+                        ),
+                        // Unknown master copy updates
+                        buildUnknownSafeUpdate(
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(SAFE_MASTER_COPY_1_1_1), value = Wei.ZERO),
+                                    CALL
+                                )
+                            )
+                        ),
+                        buildUnknownSafeUpdate(
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(SAFE_MASTER_COPY_1_1_1), value = Wei.ZERO),
+                                    DELEGATE_CALL
+                                ),
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.SetFallbackHandler.encode(DEFAULT_CALLBACK_HANDLER), value = Wei.ZERO),
+                                    CALL
+                                )
+                            )
+                        ),
+                        buildUnknownSafeUpdate(
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(SAFE_MASTER_COPY_1_1_1), value = Wei.ZERO),
+                                    CALL
+                                ),
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.SetFallbackHandler.encode(DEFAULT_CALLBACK_HANDLER), value = Wei.ZERO),
+                                    DELEGATE_CALL
+                                )
+                            )
+                        ),
+                        buildUnknownSafeUpdate(
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(TEST_ADDRESS), value = Wei.ZERO),
+                                    CALL
+                                ),
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.SetFallbackHandler.encode(DEFAULT_CALLBACK_HANDLER), value = Wei.ZERO),
+                                    CALL
+                                )
+                            )
+                        ),
+                        buildUnknownSafeUpdate(
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.ChangeMasterCopy.encode(SAFE_MASTER_COPY_1_1_1), value = Wei.ZERO),
+                                    CALL
+                                ),
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.SetFallbackHandler.encode(TEST_ADDRESS), value = Wei.ZERO),
+                                    CALL
+                                )
+                            )
+                        ),
+                        buildUnknownSafeUpdate(
+                            listOf(
+                                SafeTransaction(
+                                    Transaction(TEST_ADDRESS, data = GnosisSafe.ChangeMasterCopy.encode(SAFE_MASTER_COPY_1_1_1), value = Wei.ZERO),
+                                    CALL
+                                ),
+                                SafeTransaction(
+                                    Transaction(TEST_SAFE, data = GnosisSafe.SetFallbackHandler.encode(DEFAULT_CALLBACK_HANDLER), value = Wei.ZERO),
+                                    CALL
+                                )
+                            )
                         )
                     )
         )
+
+        private fun buildUnknownSafeUpdate(txs: List<SafeTransaction>) =
+            TestData(
+                transaction = MultiSendTransactionBuilder.build(txs), expected = TransactionData.MultiSend(txs, MULTI_SEND_LIB)
+            )
     }
 }
