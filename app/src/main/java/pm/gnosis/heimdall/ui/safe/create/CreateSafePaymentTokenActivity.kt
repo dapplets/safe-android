@@ -6,7 +6,6 @@ import android.os.Bundle
 import androidx.lifecycle.*
 import com.squareup.picasso.Picasso
 import kotlinx.android.synthetic.main.layout_create_safe_payment_token.*
-import kotlinx.android.synthetic.main.layout_payment_tokens.*
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -26,9 +25,7 @@ import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.exceptions.SimpleLocalizedException
 import pm.gnosis.heimdall.ui.safe.main.SafeMainActivity
 import pm.gnosis.heimdall.ui.tokens.payment.PaymentTokensActivity
-import pm.gnosis.heimdall.utils.errorSnackbar
-import pm.gnosis.heimdall.utils.loadTokenImage
-import pm.gnosis.heimdall.utils.weak
+import pm.gnosis.heimdall.utils.*
 import pm.gnosis.model.Solidity
 import pm.gnosis.utils.asEthereumAddress
 import pm.gnosis.utils.asEthereumAddressString
@@ -41,7 +38,7 @@ import javax.inject.Inject
 abstract class CreateSafePaymentTokenContract : ViewModel() {
     abstract val state: LiveData<State>
 
-    abstract fun setup(deviceOwner: AccountsRepository.SafeOwner?, additionalOwners: List<Solidity.Address>)
+    abstract fun setup(authenticatorInfo: AuthenticatorSetupInfo?, additionalOwners: List<Solidity.Address>)
 
     data class State(val paymentToken: ERC20Token?, val fee: BigInteger?, val canGoNext: Boolean, val viewAction: ViewAction?)
 
@@ -54,7 +51,6 @@ abstract class CreateSafePaymentTokenContract : ViewModel() {
     abstract fun createSafe()
 }
 
-@ExperimentalCoroutinesApi
 class CreateSafePaymentTokenViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val dispatchers: ApplicationModule.AppCoroutineDispatchers,
@@ -72,11 +68,11 @@ class CreateSafePaymentTokenViewModel @Inject constructor(
     /*
      * Setup logic
      */
-    private var deviceOwner: AccountsRepository.SafeOwner? = null
+    private var authenticatorInfo: AuthenticatorSetupInfo? = null
     private lateinit var additionalOwners: List<Solidity.Address>
 
-    override fun setup(deviceOwner: AccountsRepository.SafeOwner?, additionalOwners: List<Solidity.Address>) {
-        this.deviceOwner = deviceOwner
+    override fun setup(authenticatorInfo: AuthenticatorSetupInfo?, additionalOwners: List<Solidity.Address>) {
+        this.authenticatorInfo = authenticatorInfo
         this.additionalOwners = additionalOwners
     }
 
@@ -125,15 +121,15 @@ class CreateSafePaymentTokenViewModel @Inject constructor(
         if (deploymentJob?.get()?.isActive == true) return
         deploymentJob = weak(viewModelScope.launch(dispatchers.background + coroutineErrorHandler) {
             updateState { copy(canGoNext = false) }
-            val owner = deviceOwner ?: accountsRepository.createOwner().await()
+            val owner = authenticatorInfo?.safeOwner ?: accountsRepository.createOwner().await()
             val owners = listOf(owner.address) + additionalOwners
             val deploymentData = safeRepository.triggerSafeDeployment(owners, owners.size - 2).await()
+            authenticatorInfo?.let { safeRepository.saveAuthenticatorInfo(it.authenticator) }
             safeRepository.addPendingSafe(deploymentData.safe, null, deploymentData.payment, deploymentData.paymentToken).await()
             safeRepository.saveOwner(deploymentData.safe, owner).await()
             updateState { copy(viewAction = ViewAction.ShowSafe(deploymentData.safe)) }
         })
     }
-
 }
 
 class CreateSafePaymentTokenActivity : ViewModelActivity<CreateSafePaymentTokenContract>() {
@@ -154,7 +150,7 @@ class CreateSafePaymentTokenActivity : ViewModelActivity<CreateSafePaymentTokenC
                 finish()
                 return
             }
-        viewModel.setup(intent.getParcelableExtra(EXTRA_SAFE_OWNER), additionalOwners)
+        viewModel.setup(intent.getAuthenticatorInfo(), additionalOwners)
         viewModel.state.observe(this, Observer { state ->
             create_safe_payment_token_next_btn.isEnabled = state.canGoNext
             create_safe_payment_token_change_token_btn.isEnabled = state.canGoNext
@@ -183,22 +179,21 @@ class CreateSafePaymentTokenActivity : ViewModelActivity<CreateSafePaymentTokenC
     private fun performAction(viewAction: CreateSafePaymentTokenContract.ViewAction): Any =
         when (viewAction) {
             is CreateSafePaymentTokenContract.ViewAction.ShowError ->
-                errorSnackbar(payment_tokens_recycler_view, viewAction.error)
+                errorSnackbar(create_safe_payment_token_content_scroll, viewAction.error)
             is CreateSafePaymentTokenContract.ViewAction.ShowSafe ->
                 startActivity(SafeMainActivity.createIntent(this, viewAction.safe))
         }
 
     companion object {
         private const val EXTRA_ADDITIONAL_OWNERS = "extra.list_string.additional_owners"
-        private const val EXTRA_SAFE_OWNER = "extra.parcelable.safe_owner"
 
         fun createIntent(
             context: Context,
-            safeOwner: AccountsRepository.SafeOwner?,
+            authenticatorInfo: AuthenticatorSetupInfo?,
             additionalOwners: List<Solidity.Address>
         ) =
             Intent(context, CreateSafePaymentTokenActivity::class.java).apply {
-                putExtra(EXTRA_SAFE_OWNER, safeOwner)
+                authenticatorInfo.put(this)
                 putStringArrayListExtra(EXTRA_ADDITIONAL_OWNERS, additionalOwners.mapTo(ArrayList()) { it.asEthereumAddressString() })
             }
     }

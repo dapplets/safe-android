@@ -19,18 +19,17 @@ android {
 
         // Debug Settings
         buildConfigField javaTypes.BOOLEAN, "VERBOSE_EXCEPTIONS", getKey("VERBOSE_EXCEPTIONS", "false")
-        // External Link
-        buildConfigField javaTypes.STRING, "CHROME_EXTENSION_URL", asString(getKey("CHROME_EXTENSION_URL", "https://safe.gnosis.io/#personal"))
+        buildConfigField javaTypes.BOOLEAN, "ALLOW_RESTRICTED_TX", getKey("ALLOW_RESTRICTED_TX", "false")
         // Contracts
-        buildConfigField javaTypes.STRING, "SUPPORTED_SAFE_MASTER_COPY_ADDRESSES", asString(getKey("SUPPORTED_SAFE_MASTER_COPY_ADDRESSES",
-                "0xAC6072986E985aaBE7804695EC2d8970Cf7541A2," + // Version 0.0.2-alpha (Mainnet)
-                        "0x8942595A2dC5181Df0465AF0D7be08c8f23C93af," + // Version 0.1.0 (All networks)
-                        "0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A" // Version 1.0.0 (All networks)
-        ))
-        buildConfigField javaTypes.STRING, "CURRENT_SAFE_MASTER_COPY_ADDRESS", asString(getKey("CURRENT_SAFE_MASTER_COPY_ADDRESS", "0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A"))
-        buildConfigField javaTypes.STRING, "PROXY_FACTORY_ADDRESS", asString(getKey("PROXY_FACTORY_ADDRESS", "0x12302fE9c02ff50939BaAaaf415fc226C078613C"))
-        buildConfigField javaTypes.STRING, "MULTI_SEND_ADDRESS", asString(getKey("MULTI_SEND_ADDRESS", "0xe74d6af1670fb6560dd61ee29eb57c7bc027ce4e"))
-        buildConfigField javaTypes.STRING, "ENS_REGISTRY", asString(getKey("ENS_REGISTRY", "0xe7410170f87102df0055eb195163a03b7f2bff4a"))
+        buildConfigField javaTypes.STRING, "SAFE_MASTER_COPY_0_0_2", asString(getKey("SAFE_MASTER_COPY_0_0_2", "0xAC6072986E985aaBE7804695EC2d8970Cf7541A2")) // Version 0.0.2-alpha (Mainnet)
+        buildConfigField javaTypes.STRING, "SAFE_MASTER_COPY_0_1_0", asString(getKey("SAFE_MASTER_COPY_0_1_0", "0x8942595A2dC5181Df0465AF0D7be08c8f23C93af")) // Version 0.1.0 (All networks)
+        buildConfigField javaTypes.STRING, "SAFE_MASTER_COPY_1_0_0", asString(getKey("SAFE_MASTER_COPY_1_0_0", "0xb6029EA3B2c51D09a50B53CA8012FeEB05bDa35A")) // Version 1.0.0 (All networks)
+        buildConfigField javaTypes.STRING, "SAFE_MASTER_COPY_1_1_1", asString(getKey("SAFE_MASTER_COPY_1_1_1", "0x34CfAC646f301356fAa8B21e94227e3583Fe3F5F")) // Version 1.1.1 (All networks)
+        buildConfigField javaTypes.STRING, "PROXY_FACTORY_ADDRESS", asString(getKey("PROXY_FACTORY_ADDRESS", "0x76E2cFc1F5Fa8F6a5b3fC4c8F4788F0116861F9B"))
+        buildConfigField javaTypes.STRING, "MULTI_SEND_OLD_ADDRESS", asString(getKey("MULTI_SEND_ADDRESS", "0xe74d6af1670fb6560dd61ee29eb57c7bc027ce4e"))
+        buildConfigField javaTypes.STRING, "MULTI_SEND_ADDRESS", asString(getKey("MULTI_SEND_ADDRESS", "0x8D29bE29923b68abfDD21e541b9374737B49cdAD"))
+        buildConfigField javaTypes.STRING, "DEFAULT_FALLBACK_HANDLER", asString(getKey("DEFAULT_FALLBACK_HANDLER", "0xd5D82B6aDDc9027B22dCA772Aa68D5d74cdBdF44"))
+        buildConfigField javaTypes.STRING, "ENS_REGISTRY", asString(getKey("ENS_REGISTRY", "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e"))
         // Safe creation params
         buildConfigField javaTypes.INT, "PROXY_INIT_DATA_LENGTH", getKey("PROXY_INIT_DATA_LENGTH", "3006")
         buildConfigField javaTypes.STRING, "PROXY_INIT_DATA_HASH", asString(getKey("PROXY_INIT_DATA_HASH", "edf1810f1a9b5415ef81722254f125afaa5165f526077a7d7da91687cdfbc98b"))
@@ -39,12 +38,12 @@ android {
         buildConfigField javaTypes.STRING, "INFURA_API_KEY", asString(getKey("INFURA_API_KEY", ""))
         // Services
         buildConfigField javaTypes.STRING, "BLOCKCHAIN_NET_URL", asString(getKey("BLOCKCHAIN_NET_URL", "https://rinkeby.infura.io/v3/"))
-        buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.rinkeby.gnosis.pm/api/"))
-        buildConfigField javaTypes.STRING, "NOTIFICATION_SERVICE_URL", asString(getKey("NOTIFICATION_SERVICE_URL", "https://safe-notification.gnosis.pm/api/"))
+        buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.rinkeby.gnosis.io/api/"))
+        buildConfigField javaTypes.STRING, "NOTIFICATION_SERVICE_URL", asString(getKey("NOTIFICATION_SERVICE_URL", "https://safe-notification.gnosis.io/api/"))
         // Blockchain settings
         buildConfigField javaTypes.LONG, "BLOCKCHAIN_CHAIN_ID", getKey("BLOCKCHAIN_CHAIN_ID", "4")
         // Certificates
-        buildConfigField javaTypes.STRING, "PINNED_URLS", asString(getKey("PINNED_URLS", "*.staging.gnosisdev.com,*.dev.gnosisdev.com,*.gnosisdev.pm,*.gnosis.pm"))
+        buildConfigField javaTypes.STRING, "PINNED_URLS", asString(getKey("PINNED_URLS", "*.staging.gnosisdev.com,*.dev.gnosisdev.com,*.gnosisdev.pm,*.gnosis.pm,*.gnosis.io"))
         buildConfigField javaTypes.STRING, "PINNED_ROOT_CERTIFICATE_HASHES", asString(getKey("ROOT_CERTIFICATE_HASH",
                 "sha256/++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=," +
                         "sha256/f0KW/FtqTjs108NpYj42SrGvOB2PpxIVM8nWxjPqJGE=," +
@@ -88,7 +87,7 @@ android {
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
             minifyEnabled false
-            buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.staging.gnosisdev.com/api/"))
+            buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.dev.gnosisdev.com/api/"))
             buildConfigField javaTypes.STRING, "NOTIFICATION_SERVICE_URL", asString(getKey("NOTIFICATION_SERVICE_URL", "https://safe-notification.staging.gnosisdev.com/api/"))
             buildConfigField javaTypes.STRING, "SAFE_CREATION_FUNDER", asString(getKey("SAFE_CREATION_FUNDER", "0xAb8C18E66135561676f0781555D05CF6B22024A3"))
         }
@@ -100,6 +99,7 @@ android {
             minifyEnabled false
             signingConfig signingConfigs.debug
             buildConfigField javaTypes.BOOLEAN, "VERBOSE_EXCEPTIONS", getKey("VERBOSE_EXCEPTIONS", "true")
+            buildConfigField javaTypes.BOOLEAN, "ALLOW_RESTRICTED_TX", getKey("ALLOW_RESTRICTED_TX", "true")
             buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.staging.gnosisdev.com/api/"))
             buildConfigField javaTypes.STRING, "NOTIFICATION_SERVICE_URL", asString(getKey("NOTIFICATION_SERVICE_URL", "https://safe-notification.staging.gnosisdev.com/api/"))
             buildConfigField javaTypes.STRING, "SAFE_CREATION_FUNDER", asString(getKey("SAFE_CREATION_FUNDER", "0xAb8C18E66135561676f0781555D05CF6B22024A3"))
@@ -114,13 +114,12 @@ android {
 
         release {
             minifyEnabled true
-            multiDexEnabled false
+            multiDexEnabled true
             signingConfig signingConfigs.release
             buildConfigField javaTypes.LONG, "BLOCKCHAIN_CHAIN_ID", getKey("BLOCKCHAIN_CHAIN_ID", "1")
             buildConfigField javaTypes.STRING, "BLOCKCHAIN_NET_URL", asString(getKey("BLOCKCHAIN_NET_URL", "https://mainnet.infura.io/v3/"))
-            buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.gnosis.pm/api/"))
+            buildConfigField javaTypes.STRING, "RELAY_SERVICE_URL", asString(getKey("RELAY_SERVICE_URL", "https://safe-relay.gnosis.io/api/"))
             buildConfigField javaTypes.STRING, "SAFE_CREATION_FUNDER", asString(getKey("SAFE_CREATION_FUNDER", "0x07F455F30e862E13E3E3D960762cB11c4F744d52"))
-            buildConfigField javaTypes.STRING, "ENS_REGISTRY", asString(getKey("MULTI_SEND_ADDRESS", "0x314159265dd8dbb310642f98f50c066173c1259b"))
         }
     }
 
@@ -132,7 +131,13 @@ android {
 
     packagingOptions {
         exclude 'META-INF/rxjava.properties'
+        exclude 'META-INF/extensions.kotlin_module'
         exclude 'META-INF/LICENSE'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 
     lintOptions {
@@ -201,7 +206,7 @@ dependencies {
     implementation "androidx.cardview:cardview:$versions.androidx_card_view"
     implementation "androidx.recyclerview:recyclerview:$versions.androidx_recycler_view"
     implementation "androidx.constraintlayout:constraintlayout:$versions.androidx_constraint_layout"
-    kapt "androidx.lifecycle:lifecycle-compiler:$versions.androidx_lifecycle"
+    implementation "androidx.lifecycle:lifecycle-common-java8:$versions.androidx_lifecycle"
     implementation "androidx.lifecycle:lifecycle-extensions:$versions.androidx_lifecycle"
     kapt "androidx.room:room-compiler:$versions.androidx_room"
     implementation "androidx.room:room-runtime:$versions.androidx_room"
@@ -218,7 +223,7 @@ dependencies {
     implementation "io.reactivex.rxjava2:rxandroid:$versions.rxandroid"
 
     // Firebase
-    implementation "com.google.firebase:firebase-core:$versions.firebase_core"
+    implementation "com.google.firebase:firebase-analytics:$versions.firebase_analytics"
     implementation "com.google.firebase:firebase-messaging:$versions.firebase_messaging"
     implementation "com.google.android.gms:play-services-auth:$versions.play_services_auth"
 
@@ -242,6 +247,7 @@ dependencies {
 
     // Logging
     implementation "com.jakewharton.timber:timber:$versions.timber"
+    implementation "com.squareup.okhttp3:logging-interceptor:$versions.okhttp"
 
     // RxBinding
     implementation("com.jakewharton.rxbinding2:rxbinding-kotlin:$versions.rxbinding") {
@@ -263,6 +269,7 @@ dependencies {
     implementation "com.squareup.picasso:picasso:$versions.picasso"
 
     // More
+    implementation "com.github.status-im.status-keycard-java:android:$versions.status_keycard"
     implementation "com.google.zxing:core:$versions.zxing"
     implementation "com.github.clans:fab:$versions.floating_action_button"
     implementation("me.zhanghai.android.materialprogressbar:library:$versions.material_progressbar") {
@@ -278,6 +285,7 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-rx2:$versions.kotlinx_coroutines"
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$versions.androidx_lifecycle"
     implementation "androidx.lifecycle:lifecycle-livedata-ktx:$versions.androidx_lifecycle"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:$versions.androidx_lifecycle"
     implementation "androidx.room:room-ktx:$versions.androidx_room"
 
     // Testing
@@ -291,7 +299,7 @@ dependencies {
     testImplementation "org.powermock:powermock-module-junit4-rule:$versions.powermock"
 
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$versions.kotlinx_coroutines"
-    testImplementation "androidx.arch.core:core-testing:2.0.0"
+    testImplementation "androidx.arch.core:core-testing:2.1.0"
 
     // UI tests
     androidTestImplementation "org.mockito:mockito-android:$versions.mockito"
@@ -303,6 +311,10 @@ dependencies {
 
     androidTestImplementation "android.arch.persistence.room:testing:$versions.androidx_room"
 
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile).all {
+    kotlinOptions.freeCompilerArgs += ["-Xuse-experimental=kotlinx.coroutines.ExperimentalCoroutinesApi"]
 }
 
 apply plugin: 'com.google.gms.google-services'

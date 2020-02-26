@@ -8,31 +8,41 @@ import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.LinearLayoutManager
 import dagger.Module
 import dagger.Provides
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import pm.gnosis.heimdall.di.ForView
 import pm.gnosis.heimdall.di.ViewContext
 import pm.gnosis.heimdall.ui.addressbook.AddressBookContract
+import pm.gnosis.heimdall.ui.two_factor.ConnectAuthenticatorContract
 import pm.gnosis.heimdall.ui.debugsettings.DebugSettingsContract
+import pm.gnosis.heimdall.ui.deeplinks.DeeplinkContract
 import pm.gnosis.heimdall.ui.dialogs.ens.EnsInputContract
+import pm.gnosis.heimdall.ui.two_factor.keycard.KeycardCredentialsContract
+import pm.gnosis.heimdall.ui.two_factor.keycard.KeycardInitializeContract
+import pm.gnosis.heimdall.ui.two_factor.keycard.KeycardPairingContract
+import pm.gnosis.heimdall.ui.two_factor.keycard.KeycardSigningContract
 import pm.gnosis.heimdall.ui.messagesigning.ConfirmMessageContract
 import pm.gnosis.heimdall.ui.onboarding.fingerprint.FingerprintSetupContract
 import pm.gnosis.heimdall.ui.onboarding.password.PasswordSetupContract
 import pm.gnosis.heimdall.ui.recoveryphrase.ConfirmRecoveryPhraseContract
 import pm.gnosis.heimdall.ui.recoveryphrase.SetupRecoveryPhraseContract
+import pm.gnosis.heimdall.ui.safe.pairing.remove.Remove2FaRecoveryPhraseContract
 import pm.gnosis.heimdall.ui.safe.create.CreateSafeConfirmRecoveryPhraseContract
 import pm.gnosis.heimdall.ui.safe.create.CreateSafePaymentTokenContract
 import pm.gnosis.heimdall.ui.safe.details.SafeDetailsContract
 import pm.gnosis.heimdall.ui.safe.details.transactions.SafeTransactionsContract
 import pm.gnosis.heimdall.ui.safe.main.SafeMainContract
-import pm.gnosis.heimdall.ui.safe.pairing.PairingContract
+import pm.gnosis.heimdall.ui.safe.pairing.PairingStartContract
+import pm.gnosis.heimdall.ui.safe.pairing.PairingSubmitContract
 import pm.gnosis.heimdall.ui.safe.pending.DeploySafeProgressContract
 import pm.gnosis.heimdall.ui.safe.pending.SafeCreationFundContract
-import pm.gnosis.heimdall.ui.safe.recover.extension.ReplaceExtensionRecoveryPhraseContract
-import pm.gnosis.heimdall.ui.safe.recover.extension.ReplaceExtensionSubmitContract
+import pm.gnosis.heimdall.ui.safe.pairing.replace.Replace2FaRecoveryPhraseContract
 import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.ConfirmNewRecoveryPhraseContract
 import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.ScanExtensionAddressContract
+import pm.gnosis.heimdall.ui.safe.recover.recoveryphrase.SetupNewRecoveryPhraseIntroContract
 import pm.gnosis.heimdall.ui.safe.recover.safe.CheckSafeContract
 import pm.gnosis.heimdall.ui.safe.recover.safe.RecoverSafeRecoveryPhraseContract
 import pm.gnosis.heimdall.ui.safe.recover.safe.submit.RecoveringSafeContract
+import pm.gnosis.heimdall.ui.safe.upgrade.UpgradeMasterCopyContract
 import pm.gnosis.heimdall.ui.security.unlock.UnlockContract
 import pm.gnosis.heimdall.ui.settings.general.GeneralSettingsContract
 import pm.gnosis.heimdall.ui.settings.general.changepassword.ChangePasswordContract
@@ -42,15 +52,17 @@ import pm.gnosis.heimdall.ui.tokens.manage.ManageTokensContract
 import pm.gnosis.heimdall.ui.tokens.payment.PaymentTokensContract
 import pm.gnosis.heimdall.ui.tokens.receive.ReceiveTokenContract
 import pm.gnosis.heimdall.ui.transactions.create.CreateAssetTransferContract
+import pm.gnosis.heimdall.ui.transactions.view.details.MultiSendDetailsContract
 import pm.gnosis.heimdall.ui.transactions.view.confirm.ConfirmTransactionContract
 import pm.gnosis.heimdall.ui.transactions.view.review.ReviewTransactionContract
 import pm.gnosis.heimdall.ui.transactions.view.status.TransactionStatusContract
+import pm.gnosis.heimdall.ui.two_factor.authenticator.PairingAuthenticatorContract
 import pm.gnosis.heimdall.ui.walletconnect.intro.WalletConnectIntroContract
 import pm.gnosis.heimdall.ui.walletconnect.link.WalletConnectLinkContract
 import pm.gnosis.heimdall.ui.walletconnect.sessions.WalletConnectSessionsContract
 
 @Module
-class ViewModule(val context: Context) {
+class ViewModule(val context: Context, val viewModelProvider: Any? = null) {
     @Provides
     @ForView
     @ViewContext
@@ -66,10 +78,6 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
-    fun providesConfirmSafeRecoveryPhraseContract(provider: ViewModelProvider) = provider[ConfirmRecoveryPhraseContract::class.java]
-
-    @Provides
-    @ForView
     fun providesChangePasswordContract(provider: ViewModelProvider) = provider[ChangePasswordContract::class.java]
 
     @Provides
@@ -82,7 +90,15 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
+    fun providesConfirmSafeRecoveryPhraseContract(provider: ViewModelProvider) = provider[ConfirmRecoveryPhraseContract::class.java]
+
+    @Provides
+    @ForView
     fun providesConfirmTransactionContract(provider: ViewModelProvider) = provider[ConfirmTransactionContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesConnectAuthenticatorContract(provider: ViewModelProvider) = provider[ConnectAuthenticatorContract::class.java]
 
     @Provides
     @ForView
@@ -103,6 +119,10 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
+    fun providesDeeplinkContract(provider: ViewModelProvider) = provider[DeeplinkContract::class.java]
+
+    @Provides
+    @ForView
     fun providesDeploySafeProgressContract(provider: ViewModelProvider) = provider[DeploySafeProgressContract::class.java]
 
     @Provides
@@ -119,15 +139,31 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
+    fun providesKeycardCredentialsContract(provider: ViewModelProvider) = provider[KeycardCredentialsContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesKeycardInitializeContract(provider: ViewModelProvider) = provider[KeycardInitializeContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesKeycardPairingContract(provider: ViewModelProvider) = provider[KeycardPairingContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesKeycardSigningContract(provider: ViewModelProvider) = provider[KeycardSigningContract::class.java]
+
+    @Provides
+    @ForView
     fun providesManageTokensContract(provider: ViewModelProvider) = provider[ManageTokensContract::class.java]
 
     @Provides
     @ForView
-    fun providesNewConfirmRecoveryPhraseContract(provider: ViewModelProvider) = provider[ConfirmNewRecoveryPhraseContract::class.java]
+    fun providesMultiSendDetailsContract(provider: ViewModelProvider) = provider[MultiSendDetailsContract::class.java]
 
     @Provides
     @ForView
-    fun providesPairingContract(provider: ViewModelProvider) = provider[PairingContract::class.java]
+    fun providesNewConfirmRecoveryPhraseContract(provider: ViewModelProvider) = provider[ConfirmNewRecoveryPhraseContract::class.java]
 
     @Provides
     @ForView
@@ -143,12 +179,25 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
-    fun providesReplaceExtensionContract(provider: ViewModelProvider) = provider[ReplaceExtensionSubmitContract::class.java]
+    fun providesPairingAuthenticatorContract(provider: ViewModelProvider) = provider[PairingAuthenticatorContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesPairingStartContract(provider: ViewModelProvider) = provider[PairingStartContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesPairingSubmitContract(provider: ViewModelProvider) = provider[PairingSubmitContract::class.java]
 
     @Provides
     @ForView
     fun providesReplaceExtensionRecoveryPhraseContract(provider: ViewModelProvider) =
-        provider[ReplaceExtensionRecoveryPhraseContract::class.java]
+        provider[Replace2FaRecoveryPhraseContract::class.java]
+
+    @Provides
+    @ForView
+    fun providesRemoveExtensionRecoveryPhraseContract(provider: ViewModelProvider) =
+        provider[Remove2FaRecoveryPhraseContract::class.java]
 
     @Provides
     @ForView
@@ -188,6 +237,10 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
+    fun providesSetupNewRecoveryPhraseIntroContract(provider: ViewModelProvider) = provider[SetupNewRecoveryPhraseIntroContract::class.java]
+
+    @Provides
+    @ForView
     fun providesSplashContract(provider: ViewModelProvider) = provider[SplashContract::class.java]
 
     @Provides
@@ -204,6 +257,10 @@ class ViewModule(val context: Context) {
 
     @Provides
     @ForView
+    fun provideUpgradeMasterCopyContract(provider: ViewModelProvider) = provider[UpgradeMasterCopyContract::class.java]
+
+    @Provides
+    @ForView
     fun providesWalletConnectIntroContract(provider: ViewModelProvider) = provider[WalletConnectIntroContract::class.java]
 
     @Provides
@@ -217,10 +274,10 @@ class ViewModule(val context: Context) {
     @Provides
     @ForView
     fun providesViewModelProvider(factory: ViewModelProvider.Factory): ViewModelProvider {
-        return when (context) {
-            is Fragment -> ViewModelProviders.of(context, factory)
-            is FragmentActivity -> ViewModelProviders.of(context, factory)
-            else -> throw IllegalArgumentException("Unsupported context $context")
+        return when (val provider = viewModelProvider ?: context) {
+            is Fragment -> ViewModelProviders.of(provider, factory)
+            is FragmentActivity -> ViewModelProviders.of(provider, factory)
+            else -> throw IllegalArgumentException("Unsupported context $provider")
         }
     }
 }

@@ -19,6 +19,7 @@ import pm.gnosis.heimdall.reporting.ScreenId
 import pm.gnosis.heimdall.ui.base.ViewModelActivity
 import pm.gnosis.heimdall.ui.exceptions.LocalizedException
 import pm.gnosis.heimdall.ui.safe.recover.safe.CheckSafeContract.CheckResult.*
+import pm.gnosis.heimdall.ui.tokens.payment.PaymentTokensActivity
 import pm.gnosis.heimdall.utils.setCompoundDrawableResource
 import pm.gnosis.heimdall.utils.setCompoundDrawables
 import pm.gnosis.model.Solidity
@@ -75,10 +76,19 @@ class CheckSafeActivity : ViewModelActivity<CheckSafeContract>() {
 
         disposables += layout_check_safe_next.clicks()
             .subscribeBy {
-                nextIntent?.let { startActivity(it) }
+                nextIntent?.let {
+                    startActivity(PaymentTokensActivity.createIntent(context = this, safeAddress = currentAddress, hint = getString(R.string.choose_how_to_pay_recovery_fee), nextAction = it))
+                }
             }
 
         disposables += layout_check_safe_back_arrow.clicks().subscribeBy { onBackPressed() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        currentAddress?.let {
+            layout_check_safe_next.isEnabled = true
+        }
     }
 
     private fun updateAddress(address: Solidity.Address?) {
@@ -120,13 +130,13 @@ class CheckSafeActivity : ViewModelActivity<CheckSafeContract>() {
             VALID_SAFE_WITHOUT_EXTENSION -> {
                 setCheckIcon(R.drawable.ic_green_check)
                 layout_check_safe_address_info.text = null
-                nextIntent = currentAddress?.let { RecoverSafeRecoveryPhraseActivity.createIntent(this, it, null, null) }
+                nextIntent = currentAddress?.let { RecoverSafeRecoveryPhraseActivity.createIntent(this, it, null) }
                 layout_check_safe_next.isEnabled = true
             }
             VALID_SAFE_WITH_EXTENSION -> {
                 setCheckIcon(R.drawable.ic_green_check)
                 layout_check_safe_address_info.text = null
-                nextIntent = currentAddress?.let { RecoverSafePairingActivity.createIntent(this, it) }
+                nextIntent = currentAddress?.let { RecoverSafe2FAActivity.createIntent(this, it) }
                 layout_check_safe_next.isEnabled = true
             }
         }

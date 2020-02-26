@@ -16,6 +16,8 @@
     <string name="address_clipboard_success">Address copied to clipboard</string>
     <string name="share_address">Share address</string>
     <string name="x_data_bytes">%d bytes included</string>
+    <string name="x_data_bytes_delegate_call">Delegate call with %d bytes</string>
+    <string name="x_data_bytes_creation">Contract creation with %d bytes</string>
     <string name="submit_transaction">Submit Transaction</string>
     <string name="cancel">Cancel</string>
     <string name="invalid_ethereum_address">Invalid ethereum address</string>
@@ -76,7 +78,7 @@
     <string name="next">Next</string>
     <string name="confirm_password">Confirm Password</string>
     <string name="confirm_password_hint">Confirm password</string>
-    <string name="choose_password_hint">Choose passwrod</string>
+    <string name="choose_password_hint">Choose password</string>
     <string name="confirm_password_info">Please enter your password again to confirm.</string>
     <string name="onboarding_intro_info">The most secure way to manage your crypto funds</string>
     <string name="create_password">Create Password</string>
@@ -117,6 +119,7 @@
     <string name="restricted_transaction_modify_modules">It is not allowed to modify the modules of the Safe</string>
     <string name="restricted_transaction_change_threshold">It is not allowed to change the threshold of the Safe</string>
     <string name="restricted_transaction_modify_proxy">It is not allowed to modify the proxy of the Safe</string>
+    <string name="restricted_transaction_set_fallback_handler">It is not allowed to modify the fallback handler of the Safe</string>
     <string name="restricted_transaction_data_call_to_safe">It is not allowed to directly call a function on the Safe</string>
     <string name="error_loading_transaction">Error loading transaction</string>
     <string name="transaction_type_generic">Contract interaction</string>
@@ -136,7 +139,7 @@
 \t\t2. The Authenticator.\n
 \t\t3. Its 12-word recovery phrase.</string>
     <string name="safe_intro_message_2">Your funds are held securely in this mobile Safe and cannot be accessed by Gnosis Ltd.</string>
-    <string name="safe_intro_message_3"><![CDATA[You need this Safe’s <font color=#f02525>recovery phrase</font> to access your funds when you change or lose your phone.\n
+    <string name="safe_intro_message_3"><![CDATA[You need this Safe’s <font color=#f02525>recovery phrase</font> to access your funds when you change or loose your phone.\n
 (Get ready to note it down and keep it somewhere safe.)]]></string>
     <string name="pairing_info">All transactions need to be approved by both this device and the Authenticator.</string>
     <string name="scan_qr_code">Scan QR Code</string>
@@ -248,7 +251,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="recover_safe_info_explainer">Please keep your Safe\'s address and recovery phrase ready, consisting of 12 unique words.</string>
     <string name="start_recovery">Start recovery</string>
     <string name="connected_extension">Connected Authenticator</string>
-    <string name="connect_browser_extension">Connect Authenticator</string>
+    <string name="connect_authenticator">Connect Authenticator</string>
     <string name="connect_extension_description">This transaction will connect this Safe with the Authenticator. Future transactions require confirmation from both devices.</string>
     <string name="pairing_first_step"><![CDATA[1. Download the <font color=#008c73>Authenticator</font>.]]></string>
     <string name="pairing_second_step">2. Scan the QR code in the Authenticator.</string>
@@ -286,6 +289,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="transaction_fee_explanation">This is the fee required by the blockchain to execute the transaction.</string>
     <string name="authentication_required">Authentication required</string>
     <string name="authentication_explanation">Open the Authenticator to confirm this transaction.</string>
+    <string name="authentication_keycard_explanation">Use your 2FA Keycard to confirm this transaction.</string>
     <string name="resend">Resend</string>
     <string name="rejected">Rejected</string>
     <string name="confirmed">Confirmed</string>
@@ -309,7 +313,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
 2. Its Authenticator.\n
 3. A recovery phrase.</string>
     <string name="funds_held_securely">Your funds are held securely in this mobile Safe and cannot be accessed by Gnosis Ltd.</string>
-    <string name="loose_or_change_phone">If you lose or change your phone, use the Safe address and recovery phrase to recover access to your digital assets.</string>
+    <string name="loose_or_change_phone">If you loose or change your phone, use the Safe address and recovery phrase to recover access to your digital assets.</string>
     <string name="add_token">Add Token</string>
     <string name="transactions">Transactions</string>
     <string name="assets">Assets</string>
@@ -320,7 +324,6 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="incorrect_seed">Incorrect recovery phrase</string>
     <string name="enter_recovery">Enter recovery phrase</string>
     <string name="transaction_details_here">View transaction details here</string>
-    <string name="tx_submitted_replace_be">The transaction has been submitted and should take a couple of minutes. Replacing the Authenticator is in progress.</string>
     <string name="new_entry">New Entry</string>
     <string name="enter_name">Enter name</string>
     <string name="what_is_network_fee">What is the network fee?</string>
@@ -372,7 +375,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="cancel_safe_creation">Cancel Safe creation?</string>
     <string name="cancel_creation_warning">If you cancel, all progress will be lost and you won\'t be able to use this address.</string>
     <string name="enable_2fa">Enable 2-factor authentication by connecting your Safe to the Authenticator.</string>
-    <string name="open_be_link">1. Open the <a href="https://chrome.google.com/webstore/detail/gnosis-safe-mainnet-beta/iecodoenhaghdlpodmhooppdhjhmibde?hl=en" target="_blank">link to the Authenticator</a> on your desktop computer.</string>
+    <string name="open_be_link">1. Open the <a href="https://chrome.google.com/webstore/detail/gnosis-safe-mainnet-beta/iecodoenhaghdlpodmhooppdhjhmibde?hl=en" target="_blank">Gnosis Safe Authenticator link</a> on your desktop computer.</string>
     <string name="install_browser_extension">2. Install the Authenticator on your desktop computer and scan its QR code.</string>
     <string name="skip_setup_later">Skip and setup later</string>
     <string name="scan">Scan</string>
@@ -390,7 +393,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="amount_received">Amount received</string>
     <string name="share_your_address">Share your address with contracts or enable senders to scan your QR code to receive Ether and tokens.</string>
     <string name="share_your_address_to_receive_funds">Share your address with contacts or scan your QR code to receive Ether and tokens.</string>
-    <string name="once_process_is_complete">Once this process is complete, you can only use the new Authenticator to confirm transactions. Please have your Safe recovery phrase ready to confirm the recovery.</string>
+    <string name="once_process_is_complete">Once this process is complete, you can only use the new 2FA device to confirm transactions. Please have your Safe recovery phrase ready to confirm the replacement.</string>
     <string name="future_tx_approved_by_both">All future transactions will need to be approved by both devices.</string>
     <string name="disconnect_browser_extension">Disconnect Authenticator</string>
     <string name="layout_recovered_safe_info_description">The existing Safe was recovered.</string>
@@ -419,6 +422,7 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="ens_input_title">Input ENS Name</string>
     <string name="error_resolve_ens">Could not load address</string>
     <string name="choose_how_to_pay_creation_fee">Choose how to pay the creation fee.</string>
+    <string name="choose_how_to_pay_recovery_fee">Choose how to pay the recovery fee.</string>
     <string name="transaction_submitted_safe_being_recovered">Your transaction was submitted. Your Safe will be recovered now. This might take a couple of minutes.</string>
     <string name="get_in_touch">Get In Touch</string>
     <string name="create_new_safe">Create new Safe</string>
@@ -467,17 +471,107 @@ Without it, you won’t be able to recover your Safe and money.</string>
     <string name="replaceseed_in_progress">The transaction has been submitted and should take a couple of minutes. Replacing the recovery phrase is in progress. </string>
     <string name="password_changed">Your password has been changed.</string>
     <string name="backup_recovery">Backup your recovery phrase</string>
-    <string name="use_phrase_on_next_screen">Use the phrase on the next screen, together with your Safe address, to recovery your wallet in case you lose access to it.</string>
+    <string name="use_phrase_on_next_screen">Use the phrase on the next screen, together with your Safe address, to recovery your wallet in case you loose access to it.</string>
     <string name="we_recommend_password_manager">We recommend using a password manager or writing the phrase down and store the paper-copy in a safe place that only you have access to.</string>
     <string name="failed_to_connect">Failed to connect.</string>
     <string name="please_try_again_later">Please try again later.</string>
     <string name="safe_recovery_fee">Safe recovery fee</string>
     <string name="safe_recovery_fee_required">A network fee will be deducted from your Safe balance to recover your Safe.</string>
     <string name="select_safe_to_connect">Select a Safe to connect</string>
+    <string name="select_safe_for_deeplink">Select a Safe for transaction</string>
     <string name="this_payment_will_be_used">This payment method will be used to pay network fees in all transactions.</string>
     <string name="fee_method">Fee Payment Method</string>
     <string name="fee">Fee</string>
     <string name="balance">Balance</string>
     <string name="change_fee_method">Change fee payment method</string>
     <string name="pay_with">Pay with %s</string>
+    <string name="choose_input_method">Choose input method</string>
+    <string name="contract_upgrade">Contract upgrade</string>
+    <string name="this_will_upgrade">This will upgrade \'%s\' to the latest version of the Gnosis Safe contract.</string>
+    <string name="contract_upgrade_available">Contract upgrade available</string>
+    <string name="added_support_for_erc1155">In this version of the smart contract we added support for ERC1155 tokens and secure token transfer of NFTs (ERC721). Upgrade now to take advantage of the highest security standards available.</string>
+    <string name="in_the_new_version_we_added_support_of_erc1155">In the new version we added support for ERC1155 tokens and secure token transfer of NFTs (ERC721).</string>
+    <string name="upgrade_now">Upgrade now</string>
+    <string name="insufficient_funds_please_add_tokenpayment">Insufficient funds. Please add %s to your Safe or choose a different token as the payment method.</string>
+    <string name="what_is_this_about">What is this about?</string>
+    <string name="more_info_in_our_blog"><![CDATA[More info in our <font color=#008c73><u>blog.</u></font>]]></string>
+    <string name="why_upgrade">Why upgrade?</string>
+    <string name="current_version">The current version of your smart contract is outdated. If you don’t upgrade you’ll still be able to use your Safe, but we recommend upgrading now to enjoy the latest security updates.</string>
+    <string name="need_confirm_upgrade">You will need to confirm the smart contract upgrade just like a normal transaction. Please make sure your Safe has enough funds to pay the network fee.</string>
+    <string name="use_selected_device">Use selected device</string>
+    <string name="waiting_for_keycard">Waiting for Keycard…</string>
+    <string name="reading_keycard">Reading Keycard...\nKeep the card to your phone.</string>
+    <string name="setup_2fa">Setup 2FA</string>
+    <string name="pair_safe_with_two_fa">Pair the Safe with a 2FA device</string>
+    <string name="pair_safe_with_two_fa_description">Two-factor authentication (2FA) is an extra layer of security that prevents unauthorized access to your account. You can set it up by pairing a 2FA device with this Safe. After a successful setup, all transactions will need to be approved both by this phone and by your 2FA device.</string>
+    <string name="status_keycard">Status Keycard</string>
+    <string name="status_keycard_description">The Keycard is a smartcard you can use to safely receive, store and send cryptocurrencies.</string>
+    <string name="gnosis_safe_authenticator">Gnosis Safe Authenticator</string>
+    <string name="gnosis_safe_authenticator_description">The Authenticator is an extension for Google Chrome connected to the Safe.</string>
+    <string name="pair_your_keycard">Pair your Status Keycard</string>
+    <string name="keycard_intro_description_1">Provide the PIN and pairing password of your Keycard.</string>
+    <string name="keycard_intro_description_2">Hold the Keycard to the phone for 3 seconds  to pair the Keycard.</string>
+    <string name="keycard_intro_description_3">If you don’t yet have the PIN and pairing password, you can get them on the next screen.</string>
+    <string name="pair_2fa_device">Pair 2FA device</string>
+    <string name="puk_label">PUK:</string>
+    <string name="pin_label">PIN:</string>
+    <string name="pairing_password_label">Pairing password:</string>
+    <string name="you_need_credentials">You’ll need these credentials together with your Keycard to confirm each transaction.</string>
+    <string name="backup_credentials">Backup your card credentials before activating the card</string>
+    <string name="pin">PIN</string>
+    <string name="pairing_password">Pairing password</string>
+    <string name="keycard_pairing">Keycard pairing</string>
+    <string name="pair_keycard">Pair Keycard</string>
+    <string name="i_don_t_have_a_password">I don\'t have a password</string>
+    <string name="hold_keycard">Hold the Keycard to your phone</string>
+    <string name="keycard_authentiation">Keycard authentiation</string>
+    <string name="enter_pin">Enter the PIN of your Keycard.</string>
+    <string name="pairing_failed_pin">Pairing failed: Incorrect PIN code.</string>
+    <string name="pairing_failed_password">Pairing failed: Incorrect pairing password.</string>
+    <string name="three_steps">The three steps to security</string>
+    <string name="three_steps_1">Password protected app</string>
+    <string name="three_steps_2">2FA device (Optional)</string>
+    <string name="three_steps_3">Recovery phrase</string>
+    <string name="three_steps_1_desc">1. Set up password to protect this app</string>
+    <string name="three_steps_2_desc">2. (Optional) Set up a two-factor authentication method</string>
+    <string name="three_steps_3_desc">2. Securely store your recovery phrase to restore your Safe in case you loose access to this device</string>
+    <string name="what_is_the_gnosis_safe">What is the Gnosis Safe?</string>
+    <string name="your_safe_is_a_smart_contract">Your Safe is a smart contract wallet that allows you to safely manage your crypto funds and connect to Dapps.</string>
+    <string name="secure_by_design">Secure by design</string>
+    <string name="while_our_code_is_always_audited">While our code is always audited, we\'ve also formally verified the Gnosis Safe smart contracts.\n\nUse two-factor authentication to further increase the security of your wallet.</string>
+    <string name="crypto_without_the_hassle">Crypto without the hassle</string>
+    <string name="with_walletconnect_you_can_connect">With WalletConnect you can connect to Dapps securely within seconds.\n\nGnosis Safe allows you to save your ETH and pay network fees with ERC-20 tokens.</string>
+    <string name="you_are_in_control">You\'re in control</string>
+    <string name="your_funds_are_held_securely">Your funds are held securely in this mobile Safe and cannot be accessed by Gnosis.\n\nLost or changed your phone? Regain access anytime using the Safe\'s recovery methods.</string>
+    <string name="no_slots_available">No free slots available on Keycard</string>
+    <string name="all_slots_in_use">Your card currently uses all pairing slots. Please free up a slot with the Keycard\'s management app or tool and try again.</string>
+    <string name="keycard_blocked">Keycard blocked</string>
+    <string name="keycard_unblock_get_in_touch">To restore the Keycard please get in touch with us.</string>
+    <string name="keycard_blocked_subject">Keycard blocked (%1$s)</string>
+    <string name="multi_send">Batched transaction</string>
+    <string name="this_will_perform_x_transactions">This will perform %s transactions</string>
+    <string name="multi_send_contract">MultiSend contract</string>
+    <string name="show_details">Show details</string>
+    <string name="batched_transaction_details">Batched transaction details</string>
+    <string name="replace_2fa_device">Replace 2FA device</string>
+    <string name="replace_2fa">Replace 2FA</string>
+    <string name="replace_2fa_desc">The existing 2FA device connection will be replaced by the new 2FA device: %1$s</string>
+    <string name="connect_2fa">Connect 2FA</string>
+    <string name="remove_2fa">Remove 2FA</string>
+    <string name="security_2fa">2FA security</string>
+    <string name="pick_2fa">Pick 2FA device</string>
+    <string name="disable_2fa">Disable 2FA</string>
+    <string name="disable_2fa_desc">This transaction removes the existing 2FA device from your Safe: %1$s. No 2FA device will be paired with your Safe afterwards.</string>
+    <string name="disable_2fa_description">Once this process is complete, your existing 2FA device will be removed from this Safe and thus 2FA will be disabled. You will be able to set up 2FA again in the Safe menu.\n\nPlease have your recovery phrase ready to disable 2FA.</string>
+    <string name="tx_submitted_replace_be">Replacing the 2FA device is in progress. The transaction has been submitted and should take a couple of minutes.</string>
+    <string name="tx_submitted_pairing_be">Pairing the 2FA device is in progress. The transaction has been submitted and should take a couple of minutes.</string>
+    <string name="tx_submitted_remove_be">Disabling 2FA is in progress. The transaction has been submitted and should take a couple of minutes.</string>
+    <string name="authenticator_url">Authenticator URL</string>
+    <string name="nfc_support_required">NFC Support required</string>
+    <string name="requires_nfc_support">requires NFC support</string>
+    <string name="nfc_required_description">Pairing with a two-factor authentication (2FA) device is not possible because your phone does not support NFC.\nWould you prefer a different 2FA option?</string>
+    <string name="learn_more">Learn more</string>
+    <string name="telegram">Telegram</string>
+    <string name="email">E-mail</string>
+    <string name="gitter">Gitter</string>
 </resources>

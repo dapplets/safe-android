@@ -12,9 +12,7 @@ import pm.gnosis.crypto.utils.Sha3Utils
 import pm.gnosis.crypto.utils.asEthereumAddressChecksumString
 import pm.gnosis.ethereum.*
 import pm.gnosis.heimdall.BuildConfig
-import pm.gnosis.heimdall.GnosisSafe
 import pm.gnosis.heimdall.GnosisSafe.*
-import pm.gnosis.heimdall.Proxy
 import pm.gnosis.heimdall.R
 import pm.gnosis.heimdall.data.db.ApplicationDb
 import pm.gnosis.heimdall.data.db.models.*
@@ -24,6 +22,8 @@ import pm.gnosis.heimdall.data.remote.models.RelaySafeCreationParams
 import pm.gnosis.heimdall.data.repositories.*
 import pm.gnosis.heimdall.data.repositories.models.*
 import pm.gnosis.heimdall.di.ApplicationContext
+import pm.gnosis.heimdall.utils.AuthenticatorInfo
+import pm.gnosis.heimdall.utils.SafeContractUtils
 import pm.gnosis.model.Solidity
 import pm.gnosis.model.SolidityBase
 import pm.gnosis.models.Transaction
@@ -51,6 +51,7 @@ class DefaultGnosisSafeRepository @Inject constructor(
 
     private val safeDao = gnosisAuthenticatorDb.gnosisSafeDao()
     private val descriptionsDao = gnosisAuthenticatorDb.descriptionsDao()
+    private val authenticatorInfoDao = gnosisAuthenticatorDb.authenticatorInfoDao()
 
     override fun observeAllSafes() =
         Flowable.combineLatest(
@@ -85,7 +86,7 @@ class DefaultGnosisSafeRepository @Inject constructor(
         val paymentToken = response.paymentToken
         if (request.paymentToken != paymentToken)
             throw IllegalStateException("Unexpected payment token returned")
-        if (response.masterCopy != MASTER_COPY_ADDRESS)
+        if (response.masterCopy != SafeContractUtils.currentMasterCopy())
             throw IllegalStateException("Unexpected master copy returned")
         if (response.proxyFactory != PROXY_FACTORY_ADDRESS)
             throw IllegalStateException("Unexpected proxy factory returned")
@@ -99,6 +100,7 @@ class DefaultGnosisSafeRepository @Inject constructor(
             _threshold = Solidity.UInt256(request.threshold.toBigInteger()),
             to = Solidity.Address(BigInteger.ZERO),
             data = Solidity.Bytes(byteArrayOf()),
+            fallbackHandler = DEFAULT_FALLBACK_HANDLER,
             payment = Solidity.UInt256(response.payment),
             paymentToken = response.paymentToken,
             paymentReceiver = response.paymentReceiver
@@ -111,7 +113,7 @@ class DefaultGnosisSafeRepository @Inject constructor(
         val salt = Sha3Utils.keccak(setupDataHash + Solidity.UInt256(request.saltNonce.toBigInteger()).encode().hexToByteArray())
 
 
-        val deploymentCode = PROXY_CODE + MASTER_COPY_ADDRESS.encode()
+        val deploymentCode = PROXY_CODE + SafeContractUtils.currentMasterCopy().encode()
         val codeHash = Sha3Utils.keccak(deploymentCode.hexToByteArray())
         val create2Hash = Sha3Utils.keccak(byteArrayOf(0xff.toByte()) + PROXY_FACTORY_ADDRESS.value.toBytes(20) + salt + codeHash)
         val address = Solidity.Address(BigInteger(1, create2Hash.copyOfRange(12, 32)))
@@ -166,7 +168,7 @@ class DefaultGnosisSafeRepository @Inject constructor(
                 SafeInfo(address, balance, threshold, owners, isOwner, modules, version)
             }
 
-    override fun checkSafe(address: Solidity.Address): Observable<Pair<Boolean, Boolean>> =
+    override fun checkSafe(address: Solidity.Address): Observable<Pair<Solidity.Address?, Boolean>> =
         ethereumRepository.request(
             CheckSafeRequest(
                 masterCopy = EthGetStorageAt(from = address, location = BigInteger.ZERO, id = 0),
@@ -174,13 +176,11 @@ class DefaultGnosisSafeRepository @Inject constructor(
             )
         )
             .map { r ->
-                r.masterCopy.result().let {
-                    !it?.removeHexPrefix().isNullOrBlank() &&
-                            SUPPORTED_SAFE_MASTER_COPIES.contains(Proxy.Implementation.decode(it!!).param0)
-                } to r.threshold.result().let {
-                    !it?.removeHexPrefix().isNullOrBlank() &&
-                            GetThreshold.decode(it!!).param0.value > NO_EXTENSION_THRESHOLD
-                }
+                r.masterCopy.result()?.asEthereumAddress() to
+                        r.threshold.result().let {
+                            !it?.removeHexPrefix().isNullOrBlank() &&
+                                    GetThreshold.decode(it!!).param0.value > NO_EXTENSION_THRESHOLD
+                        }
             }
 
     override fun loadAbstractSafe(address: Solidity.Address): Single<AbstractSafe> =
@@ -384,6 +384,13 @@ class DefaultGnosisSafeRepository @Inject constructor(
 
     override fun sign(safeAddress: Solidity.Address, data: ByteArray): Single<Signature> = accountsRepository.sign(safeAddress, data)
 
+    override fun saveAuthenticatorInfo(info: AuthenticatorInfo) {
+        authenticatorInfoDao.insertAuthenticatorInfo(info.toDb())
+    }
+
+    override fun loadAuthenticatorInfo(address: Solidity.Address) =
+        authenticatorInfoDao.loadAuthenticatorInfo(address).fromDb()
+
     private class SafeInfoRequest(
         val balance: EthRequest<Wei>,
         val threshold: EthRequest<String>,
@@ -399,14 +406,13 @@ class DefaultGnosisSafeRepository @Inject constructor(
     ) : BulkRequest(masterCopy, threshold)
 
     companion object {
-        private val SUPPORTED_SAFE_MASTER_COPIES = BuildConfig.SUPPORTED_SAFE_MASTER_COPY_ADDRESSES.split(",").map { it.asEthereumAddress()!! }
         private val NO_EXTENSION_THRESHOLD = BigInteger.ONE
 
-        private val MASTER_COPY_ADDRESS = BuildConfig.CURRENT_SAFE_MASTER_COPY_ADDRESS.asEthereumAddress()!!
+        private val DEFAULT_FALLBACK_HANDLER = BuildConfig.DEFAULT_FALLBACK_HANDLER.asEthereumAddress()!!
         private val PROXY_FACTORY_ADDRESS = BuildConfig.PROXY_FACTORY_ADDRESS.asEthereumAddress()!!
         private val FUNDER_ADDRESS = BuildConfig.SAFE_CREATION_FUNDER.asEthereumAddress()!!
         private val TX_ORIGIN_ADDRESS = "0x0".asEthereumAddress()!!
         private const val PROXY_CODE =
-            "0x608060405234801561001057600080fd5b506040516020806101a88339810180604052602081101561003057600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100c7576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260248152602001806101846024913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555050606e806101166000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054163660008037600080366000845af43d6000803e6000811415603d573d6000fd5b3d6000f3fea165627a7a723058201e7d648b83cfac072cbccefc2ffc62a6999d4a050ee87a721942de1da9670db80029496e76616c6964206d617374657220636f707920616464726573732070726f7669646564"
+            "0x608060405234801561001057600080fd5b506040516101e73803806101e78339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260248152602001806101c36024913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060aa806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea265627a7a72315820d8a00dc4fe6bf675a9d7416fc2d00bb3433362aa8186b750f76c4027269667ff64736f6c634300050e0032496e76616c6964206d617374657220636f707920616464726573732070726f7669646564"
     }
 }

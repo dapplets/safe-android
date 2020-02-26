@@ -9,6 +9,8 @@ import pm.gnosis.heimdall.reporting.CrashTracker
 import pm.gnosis.heimdall.reporting.EventTracker
 import pm.gnosis.heimdall.reporting.impl.FabricCrashTracker
 import pm.gnosis.heimdall.reporting.impl.FabricEventTracker
+import pm.gnosis.heimdall.ui.deeplinks.EIP681DeeplinkTransactionParser
+import pm.gnosis.heimdall.ui.deeplinks.DeeplinkTransactionParser
 import pm.gnosis.heimdall.ui.safe.helpers.DefaultRecoverSafeOwnersHelper
 import pm.gnosis.heimdall.ui.safe.helpers.RecoverSafeOwnersHelper
 import pm.gnosis.heimdall.ui.transactions.view.helpers.DefaultSubmitTransactionHelper
@@ -57,7 +59,15 @@ abstract class ApplicationBindingsModule {
 
     @Binds
     @Singleton
+    abstract fun bindsAppPreferencesManager(manager: WrappedAppPreferencesManager): AppPreferencesManager
+
+    @Binds
+    @Singleton
     abstract fun bindsCryptoHelper(manager: SvalinnCryptoHelper): CryptoHelper
+
+    @Binds
+    @Singleton
+    abstract fun bindsEnsNormalizer(normalizer: IDNEnsNormalizer): EnsNormalizer
 
     @Binds
     @Singleton
@@ -69,15 +79,15 @@ abstract class ApplicationBindingsModule {
 
     @Binds
     @Singleton
-    abstract fun bindsAppPreferencesManager(manager: WrappedAppPreferencesManager): AppPreferencesManager
-
-    @Binds
-    @Singleton
     abstract fun bindsSessionBuilder(builder: WCSessionBuilder): SessionBuilder
 
     @Binds
     @Singleton
     abstract fun bindsTimeProvider(provider: LocalTimeProvider): TimeProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindsDeeplinkTransactionParser(provider: EIP681DeeplinkTransactionParser): DeeplinkTransactionParser
 
     /*
         Repositories
@@ -94,6 +104,10 @@ abstract class ApplicationBindingsModule {
     @Binds
     @Singleton
     abstract fun bindsBridgeRepository(repository: WalletConnectBridgeRepository): BridgeRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindsCardRepository(repository: DefaultCardRepository): CardRepository
 
     @Binds
     @Singleton
