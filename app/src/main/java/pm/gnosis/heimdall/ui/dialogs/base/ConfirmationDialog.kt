@@ -49,11 +49,13 @@ class ConfirmationDialog : BaseDialog() {
         }
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        dialog.window.colorStatusBar(R.color.white)
-        return dialog
-    }
+
+    // commented because of the error at Android 6.0.1
+    // override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+    //     val dialog = super.onCreateDialog(savedInstanceState)
+    //     dialog.window?.colorStatusBar(R.color.white)
+    //     return dialog
+    // }
 
     override fun onStart() {
         super.onStart()
